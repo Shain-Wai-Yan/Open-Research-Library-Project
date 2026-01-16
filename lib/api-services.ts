@@ -40,12 +40,28 @@ const API_CONFIG = {
 }
 
 // ============================================================================
+// SEARCH RESULT TYPE - For pagination
+// ============================================================================
+
+export interface SearchResult {
+  papers: Paper[]
+  totalResults: number
+  currentPage: number
+  hasMore: boolean
+}
+
+// ============================================================================
 // 1. OPENALEX API - Primary search engine (250M+ papers)
 // ============================================================================
 
-async function searchOpenAlex(query: string, filters?: SearchFilters): Promise<Paper[]> {
+async function searchOpenAlex(
+  query: string,
+  filters?: SearchFilters,
+  page = 1,
+  pageSize = 50,
+): Promise<{ papers: Paper[]; total: number }> {
   try {
-    let url = `${API_CONFIG.openalex.baseUrl}/works?search=${encodeURIComponent(query)}&mailto=${API_CONFIG.openalex.email}&per-page=20`
+    let url = `${API_CONFIG.openalex.baseUrl}/works?search=${encodeURIComponent(query)}&mailto=${API_CONFIG.openalex.email}&per-page=${pageSize}&page=${page}`
 
     // Apply filters
     const filterParts: string[] = []
@@ -64,7 +80,7 @@ async function searchOpenAlex(query: string, filters?: SearchFilters): Promise<P
 
     const data = await response.json()
 
-    return data.results.map((work: any) => ({
+    const papers = data.results.map((work: any) => ({
       id: work.id,
       title: work.title || "Untitled",
       authors:
@@ -84,9 +100,11 @@ async function searchOpenAlex(query: string, filters?: SearchFilters): Promise<P
       source: "openalex" as const,
       openAccess: work.open_access?.is_oa || false,
     }))
+
+    return { papers, total: data.meta?.count || 0 }
   } catch (error) {
     console.error("[OpenAlex] Search error:", error)
-    return []
+    return { papers: [], total: 0 }
   }
 }
 
@@ -94,16 +112,22 @@ async function searchOpenAlex(query: string, filters?: SearchFilters): Promise<P
 // 2. SEMANTIC SCHOLAR API - Citation network & recommendations
 // ============================================================================
 
-async function searchSemanticScholar(query: string, filters?: SearchFilters): Promise<Paper[]> {
+async function searchSemanticScholar(
+  query: string,
+  filters?: SearchFilters,
+  page = 1,
+  pageSize = 50,
+): Promise<{ papers: Paper[]; total: number }> {
   try {
-    const url = `${API_CONFIG.semanticScholar.baseUrl}/paper/search?query=${encodeURIComponent(query)}&limit=20&fields=paperId,title,abstract,authors,year,citationCount,referenceCount,openAccessPdf,externalIds,fieldsOfStudy`
+    const offset = (page - 1) * pageSize
+    const url = `${API_CONFIG.semanticScholar.baseUrl}/paper/search?query=${encodeURIComponent(query)}&limit=${pageSize}&offset=${offset}&fields=paperId,title,abstract,authors,year,citationCount,referenceCount,openAccessPdf,externalIds,fieldsOfStudy`
 
     const response = await fetch(url)
     if (!response.ok) throw new Error(`Semantic Scholar error: ${response.statusText}`)
 
     const data = await response.json()
 
-    return (
+    const papers =
       data.data?.map((paper: any) => ({
         id: paper.paperId,
         title: paper.title,
@@ -123,10 +147,11 @@ async function searchSemanticScholar(query: string, filters?: SearchFilters): Pr
         source: "semantic-scholar" as const,
         openAccess: !!paper.openAccessPdf,
       })) || []
-    )
+
+    return { papers, total: data.total || 0 }
   } catch (error) {
     console.error("[Semantic Scholar] Search error:", error)
-    return []
+    return { papers: [], total: 0 }
   }
 }
 
@@ -175,9 +200,10 @@ async function getSemanticScholarCitations(paperId: string) {
 // 3. ARXIV API - Preprints (2M+ papers)
 // ============================================================================
 
-async function searchArxiv(query: string): Promise<Paper[]> {
+async function searchArxiv(query: string, page = 1, pageSize = 50): Promise<{ papers: Paper[]; total: number }> {
   try {
-    const url = `${API_CONFIG.arxiv.baseUrl}/query?search_query=all:${encodeURIComponent(query)}&start=0&max_results=10`
+    const start = (page - 1) * pageSize
+    const url = `${API_CONFIG.arxiv.baseUrl}/query?search_query=all:${encodeURIComponent(query)}&start=${start}&max_results=${pageSize}`
 
     const response = await fetch(url)
     if (!response.ok) throw new Error(`arXiv error: ${response.statusText}`)
@@ -186,9 +212,10 @@ async function searchArxiv(query: string): Promise<Paper[]> {
     const parser = new DOMParser()
     const xml = parser.parseFromString(text, "text/xml")
 
+    const totalResults = Number.parseInt(xml.querySelector("totalResults")?.textContent || "0")
     const entries = Array.from(xml.querySelectorAll("entry"))
 
-    return entries.map((entry) => {
+    const papers = entries.map((entry) => {
       const id = entry.querySelector("id")?.textContent?.split("/").pop() || ""
       const authors = Array.from(entry.querySelectorAll("author name")).map((name) => ({
         id: name.textContent || "",
@@ -210,9 +237,11 @@ async function searchArxiv(query: string): Promise<Paper[]> {
         openAccess: true,
       }
     })
+
+    return { papers, total: totalResults }
   } catch (error) {
     console.error("[arXiv] Search error:", error)
-    return []
+    return { papers: [], total: 0 }
   }
 }
 
@@ -220,16 +249,17 @@ async function searchArxiv(query: string): Promise<Paper[]> {
 // 4. CROSSREF API - Metadata enrichment (130M+ works)
 // ============================================================================
 
-async function searchCrossref(query: string): Promise<Paper[]> {
+async function searchCrossref(query: string, page = 1, pageSize = 50): Promise<{ papers: Paper[]; total: number }> {
   try {
-    const url = `${API_CONFIG.crossref.baseUrl}/works?query=${encodeURIComponent(query)}&mailto=${API_CONFIG.crossref.email}&rows=10`
+    const offset = (page - 1) * pageSize
+    const url = `${API_CONFIG.crossref.baseUrl}/works?query=${encodeURIComponent(query)}&mailto=${API_CONFIG.crossref.email}&rows=${pageSize}&offset=${offset}`
 
     const response = await fetch(url)
     if (!response.ok) throw new Error(`Crossref error: ${response.statusText}`)
 
     const data = await response.json()
 
-    return (
+    const papers =
       data.message?.items?.map((item: any) => ({
         id: item.DOI,
         title: item.title?.[0] || "Untitled",
@@ -245,13 +275,14 @@ async function searchCrossref(query: string): Promise<Paper[]> {
         referenceCount: item["references-count"] || 0,
         fieldsOfStudy: item.subject || [],
         doi: item.DOI,
-        source: "openalex" as const,
+        source: "crossref" as const,
         openAccess: item.link?.some((l: any) => l.URL) || false,
       })) || []
-    )
+
+    return { papers, total: data.message?.["total-results"] || 0 }
   } catch (error) {
     console.error("[Crossref] Search error:", error)
-    return []
+    return { papers: [], total: 0 }
   }
 }
 
@@ -304,9 +335,10 @@ async function getUnpaywallPDF(doi: string): Promise<string | null> {
 // 7. CORE API - Open access papers (200M+ papers)
 // ============================================================================
 
-async function searchCore(query: string): Promise<Paper[]> {
+async function searchCore(query: string, page = 1, pageSize = 50): Promise<{ papers: Paper[]; total: number }> {
   try {
-    const url = `${API_CONFIG.core.baseUrl}/search/works?q=${encodeURIComponent(query)}&limit=10`
+    const offset = (page - 1) * pageSize
+    const url = `${API_CONFIG.core.baseUrl}/search/works?q=${encodeURIComponent(query)}&limit=${pageSize}&offset=${offset}`
 
     const response = await fetch(url, {
       headers: {
@@ -318,7 +350,7 @@ async function searchCore(query: string): Promise<Paper[]> {
 
     const data = await response.json()
 
-    return (
+    const papers =
       data.results?.map((item: any) => ({
         id: `core:${item.id}`,
         title: item.title || "Untitled",
@@ -335,13 +367,14 @@ async function searchCore(query: string): Promise<Paper[]> {
         fieldsOfStudy: item.topics || [],
         pdfUrl: item.downloadUrl || undefined,
         doi: item.doi || undefined,
-        source: "openalex" as const,
+        source: "core" as const,
         openAccess: true,
       })) || []
-    )
+
+    return { papers, total: data.totalHits || 0 }
   } catch (error) {
     console.error("[CORE] Search error:", error)
-    return []
+    return { papers: [], total: 0 }
   }
 }
 
@@ -381,7 +414,7 @@ async function searchPubMed(query: string): Promise<Paper[]> {
         referenceCount: 0,
         fieldsOfStudy: [],
         doi: paper?.elocationid?.replace("doi: ", "") || undefined,
-        source: "openalex" as const,
+        source: "pubmed" as const,
         openAccess: false,
       }
     })
@@ -392,29 +425,36 @@ async function searchPubMed(query: string): Promise<Paper[]> {
 }
 
 // ============================================================================
-// UNIFIED SEARCH - Combines all 8 sources intelligently
+// UNIFIED SEARCH - Combines all sources with pagination
 // ============================================================================
 
-export async function searchAllSources(query: string, filters?: SearchFilters): Promise<Paper[]> {
-  console.log("[v0] Starting unified search across 8 sources...")
+export async function searchAllSources(
+  query: string,
+  filters?: SearchFilters,
+  page = 1,
+  pageSize = 50,
+): Promise<SearchResult> {
+  console.log("[v0] Starting paginated search, page:", page)
 
-  // Search all sources in parallel for speed
+  // Search all sources in parallel
   const results = await Promise.all([
-    searchOpenAlex(query, filters),
-    searchSemanticScholar(query, filters),
-    searchArxiv(query),
-    searchCrossref(query),
-    searchCore(query),
-    // searchPubMed(query), // Optional - uncomment if you need medical papers
+    searchOpenAlex(query, filters, page, pageSize),
+    searchSemanticScholar(query, filters, page, pageSize),
+    searchArxiv(query, page, pageSize),
+    searchCrossref(query, page, pageSize),
+    searchCore(query, page, pageSize),
   ])
 
+  // Calculate total results across all sources
+  const totalResults = results.reduce((sum, r) => sum + r.total, 0)
+
   console.log(
-    "[v0] Raw results:",
-    results.map((r) => r.length),
+    "[v0] Results per source:",
+    results.map((r) => `${r.papers.length}/${r.total}`),
   )
 
   // Flatten and deduplicate by DOI and title
-  const allPapers = results.flat()
+  const allPapers = results.flatMap((r) => r.papers)
   const uniquePapers = new Map<string, Paper>()
 
   for (const paper of allPapers) {
@@ -448,9 +488,14 @@ export async function searchAllSources(query: string, filters?: SearchFilters): 
   // Sort by citation count (most cited first)
   finalResults.sort((a, b) => b.citationCount - a.citationCount)
 
-  console.log("[v0] Final deduplicated results:", finalResults.length)
+  console.log("[v0] Final deduplicated results:", finalResults.length, "of", totalResults, "total")
 
-  return finalResults.slice(0, 50) // Return top 50
+  return {
+    papers: finalResults,
+    totalResults,
+    currentPage: page,
+    hasMore: page * pageSize < totalResults,
+  }
 }
 
 // ============================================================================

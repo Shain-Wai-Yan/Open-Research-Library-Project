@@ -1,5 +1,14 @@
 // Production API Client - Now uses real APIs instead of mock data
-import type { Paper, Collection, Note, AtomicInsight, TopicCluster, SearchFilters, LiteratureReview } from "./types"
+import type {
+  Paper,
+  Collection,
+  Note,
+  AtomicInsight,
+  TopicCluster,
+  SearchFilters,
+  LiteratureReview,
+  SearchResult,
+} from "./types"
 import { searchAllSources, getEnhancedCitationNetwork, enhancePaperWithPDF } from "./api-services"
 
 // ============================================================================
@@ -10,12 +19,22 @@ import { searchAllSources, getEnhancedCitationNetwork, enhancePaperWithPDF } fro
  * Search papers across 8 sources: OpenAlex, Semantic Scholar, arXiv,
  * Crossref, OpenCitations, Unpaywall, CORE, and PubMed
  */
-export async function searchPapers(query: string, filters?: SearchFilters): Promise<Paper[]> {
+export async function searchPapers(
+  query: string,
+  filters?: SearchFilters,
+  page = 1,
+  pageSize = 50,
+): Promise<SearchResult> {
   try {
-    return await searchAllSources(query, filters)
+    return await searchAllSources(query, filters, page, pageSize)
   } catch (error) {
     console.error("[API Client] Search error:", error)
-    return []
+    return {
+      papers: [],
+      totalResults: 0,
+      currentPage: 1,
+      hasMore: false,
+    }
   }
 }
 
