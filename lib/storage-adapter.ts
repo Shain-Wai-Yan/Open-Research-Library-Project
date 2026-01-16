@@ -39,15 +39,17 @@ export async function getCollections(): Promise<Collection[]> {
     return []
   }
 
-  return data.map((row) => ({
-    id: row.id,
-    name: row.name,
-    description: row.description || "",
-    color: row.color as any,
-    paperIds: [], // Will be populated from saved_papers table
-    createdAt: row.created_at,
-    updatedAt: row.updated_at || row.created_at,
-  }))
+  return data.map(
+    (row: { id: string; name: string; description?: string; color: any; created_at: string; updated_at?: string }) => ({
+      id: row.id,
+      name: row.name,
+      description: row.description || "",
+      color: row.color,
+      paperIds: [], // Will be populated from saved_papers table
+      createdAt: row.created_at,
+      updatedAt: row.updated_at || row.created_at,
+    }),
+  )
 }
 
 export async function saveCollection(
@@ -127,7 +129,7 @@ export async function saveCollection(
       id: data.id,
       name: data.name,
       description: data.description || "",
-      color: data.color as any,
+      color: data.color,
       paperIds: [],
       createdAt: data.created_at,
       updatedAt: data.updated_at,
@@ -150,7 +152,7 @@ export async function saveCollection(
       id: data.id,
       name: data.name,
       description: data.description || "",
-      color: data.color as any,
+      color: data.color,
       paperIds: [],
       createdAt: data.created_at,
       updatedAt: data.updated_at,
@@ -204,11 +206,13 @@ export async function getInsights(paperId?: string): Promise<AtomicInsight[]> {
     return []
   }
 
-  return data.map((row) => ({
+  return data.map((row: { id: string; paper_id: string; type: string; content: string; created_at: string }) => ({
     id: row.id,
     paperId: row.paper_id,
     type: row.type,
     content: row.content,
+    relatedInsights: [], // Empty array for localStorage compatibility
+    tags: [], // Empty array for localStorage compatibility
     createdAt: row.created_at,
   }))
 }
@@ -262,6 +266,8 @@ export async function saveInsight(
     paperId: data.paper_id,
     type: data.type,
     content: data.content,
+    relatedInsights: insight.relatedInsights || [],
+    tags: insight.tags || [],
     createdAt: data.created_at,
   }
 }

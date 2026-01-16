@@ -111,3 +111,10 @@ export interface UserProfile {
   researchInterests: string[]
   createdAt: string
 }
+
+export interface SearchResult {
+  papers: Paper[]
+  totalResults: number
+  currentPage: number
+  hasMore: boolean
+}
