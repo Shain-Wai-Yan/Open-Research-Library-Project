@@ -5,7 +5,7 @@ import { Sidebar } from "@/components/layout/sidebar"
 import { Header } from "@/components/layout/header"
 import { SearchBar } from "@/components/search/search-bar"
 import { PaperCard } from "@/components/papers/paper-card"
-import { searchPapers } from "@/lib/mock-api"
+import { searchPapers } from "@/lib/api-client"
 import type { Paper, SearchFilters } from "@/lib/types"
 
 export default function DashboardPage() {
