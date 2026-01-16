@@ -32,6 +32,7 @@ export function CollectionManager() {
   const loadCollections = async () => {
     setIsLoading(true)
     const data = await getCollections()
+    console.log("[v0] Loaded collections:", data)
     setCollections(data)
     setIsLoading(false)
   }
@@ -43,18 +44,27 @@ export function CollectionManager() {
       name: newCollection.name,
       description: newCollection.description,
       color: COLLECTION_COLORS[Math.floor(Math.random() * COLLECTION_COLORS.length)],
-      paperCount: 0,
+      paperIds: [],
     }
 
-    await saveCollection(collection)
-    await loadCollections()
-    setNewCollection({ name: "", description: "" })
-    setIsOpen(false)
+    console.log("[v0] Creating collection:", collection)
+    try {
+      await saveCollection(collection)
+      await loadCollections()
+      setNewCollection({ name: "", description: "" })
+      setIsOpen(false)
+    } catch (error) {
+      console.error("[v0] Error creating collection:", error)
+    }
   }
 
   const handleDelete = async (id: string) => {
-    await deleteCollection(id)
-    await loadCollections()
+    try {
+      await deleteCollection(id)
+      await loadCollections()
+    } catch (error) {
+      console.error("[v0] Error deleting collection:", error)
+    }
   }
 
   if (isLoading) {
@@ -117,7 +127,7 @@ export function CollectionManager() {
                   </div>
                   <div>
                     <h4 className="font-semibold">{collection.name}</h4>
-                    <p className="text-xs text-muted-foreground">{collection.paperCount} papers</p>
+                    <p className="text-xs text-muted-foreground">{collection.paperIds?.length || 0} papers</p>
                   </div>
                 </div>
                 <Button variant="ghost" size="icon" onClick={() => handleDelete(collection.id!)}>

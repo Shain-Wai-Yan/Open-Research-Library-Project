@@ -21,6 +21,17 @@ export async function getCollections(): Promise<Collection[]> {
   const supabase = getSupabaseClient()
   if (!supabase) return []
 
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    console.log("[v0] No authenticated user, using localStorage")
+    if (typeof window === "undefined") return []
+    const data = localStorage.getItem("orl_collections")
+    return data ? JSON.parse(data) : []
+  }
+
   const { data, error } = await supabase.from("collections").select("*").order("created_at", { ascending: false })
 
   if (error) {
@@ -33,21 +44,57 @@ export async function getCollections(): Promise<Collection[]> {
     name: row.name,
     description: row.description || "",
     color: row.color as any,
-    paperCount: 0, // Will be calculated separately
+    paperIds: [], // Will be populated from saved_papers table
     createdAt: row.created_at,
+    updatedAt: row.updated_at || row.created_at,
   }))
 }
 
 export async function saveCollection(
-  collection: Omit<Collection, "id" | "createdAt"> & { id?: string },
+  collection: Omit<Collection, "id" | "createdAt" | "updatedAt"> & { id?: string },
 ): Promise<Collection> {
+  console.log("[v0] Saving collection:", collection)
+
   if (!isSupabaseConfigured()) {
+    console.log("[v0] Supabase not configured, using localStorage")
     // LocalStorage fallback
     const collections = await getCollections()
     const newCollection: Collection = {
       ...collection,
       id: collection.id || `col-${Date.now()}`,
+      paperIds: collection.paperIds || [],
       createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }
+
+    const index = collections.findIndex((c) => c.id === newCollection.id)
+    if (index >= 0) {
+      collections[index] = newCollection
+    } else {
+      collections.push(newCollection)
+    }
+
+    localStorage.setItem("orl_collections", JSON.stringify(collections))
+    console.log("[v0] Saved to localStorage:", newCollection)
+    return newCollection
+  }
+
+  const supabase = getSupabaseClient()
+  if (!supabase) throw new Error("Supabase not configured")
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    console.log("[v0] No authenticated user, falling back to localStorage")
+    const collections = await getCollections()
+    const newCollection: Collection = {
+      ...collection,
+      id: collection.id || `col-${Date.now()}`,
+      paperIds: collection.paperIds || [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     }
 
     const index = collections.findIndex((c) => c.id === newCollection.id)
@@ -60,14 +107,6 @@ export async function saveCollection(
     localStorage.setItem("orl_collections", JSON.stringify(collections))
     return newCollection
   }
-
-  const supabase = getSupabaseClient()
-  if (!supabase) throw new Error("Supabase not configured")
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) throw new Error("Not authenticated")
 
   if (collection.id) {
     // Update existing
@@ -89,8 +128,9 @@ export async function saveCollection(
       name: data.name,
       description: data.description || "",
       color: data.color as any,
-      paperCount: 0,
+      paperIds: [],
       createdAt: data.created_at,
+      updatedAt: data.updated_at,
     }
   } else {
     // Create new
@@ -111,8 +151,9 @@ export async function saveCollection(
       name: data.name,
       description: data.description || "",
       color: data.color as any,
-      paperCount: 0,
+      paperIds: [],
       createdAt: data.created_at,
+      updatedAt: data.updated_at,
     }
   }
 }
