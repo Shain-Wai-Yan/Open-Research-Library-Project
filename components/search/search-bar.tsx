@@ -1,8 +1,7 @@
 "use client"
 
 import type React from "react"
-
-import { useState } from "react"
+import { useState, useRef, useEffect } from "react"
 import { Search, SlidersHorizontal, Sparkles } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -19,13 +18,26 @@ export function SearchBar({ onSearch, onFilterChange }: SearchBarProps) {
   const [query, setQuery] = useState("")
   const [showFilters, setShowFilters] = useState(false)
 
+  const debounceRef = useRef<NodeJS.Timeout>()
+
   const parsedQuery = parseQuery(query)
   const isAdvanced = parsedQuery.isAdvanced
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current)
+    }
     onSearch(query)
   }
+
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current)
+      }
+    }
+  }, [])
 
   return (
     <div className="space-y-4">

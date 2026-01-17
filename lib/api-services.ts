@@ -3,8 +3,8 @@
 
 import type { Paper, SearchFilters } from "./types"
 import { parseQuery } from "./query-parser"
-import { sortPapers, type SortOption } from "./relevance-scoring"
 import { deduplicatePapers } from "./deduplication"
+import { getSearchEngine } from "./search-engine"
 
 // ============================================================================
 // API CONFIGURATION - Using provided credentials
@@ -205,10 +205,20 @@ async function getSemanticScholarCitations(paperId: string) {
 
 async function searchArxiv(query: string, page = 1, pageSize = 50): Promise<{ papers: Paper[]; total: number }> {
   try {
+    if (typeof window === "undefined") {
+      console.log("[arXiv] Skipping on server-side")
+      return { papers: [], total: 0 }
+    }
+
     const start = (page - 1) * pageSize
     const url = `${API_CONFIG.arxiv.baseUrl}/query?search_query=all:${encodeURIComponent(query)}&start=${start}&max_results=${pageSize}`
 
-    const response = await fetch(url)
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 10000) // 10s timeout
+
+    const response = await fetch(url, { signal: controller.signal })
+    clearTimeout(timeoutId)
+
     if (!response.ok) throw new Error(`arXiv error: ${response.statusText}`)
 
     const text = await response.text()
@@ -243,7 +253,11 @@ async function searchArxiv(query: string, page = 1, pageSize = 50): Promise<{ pa
 
     return { papers, total: totalResults }
   } catch (error) {
-    console.error("[arXiv] Search error:", error)
+    if (error instanceof Error && error.name === "AbortError") {
+      console.error("[arXiv] Request timeout")
+    } else {
+      console.error("[arXiv] Search error:", error)
+    }
     return { papers: [], total: 0 }
   }
 }
@@ -431,74 +445,125 @@ async function searchPubMed(query: string): Promise<Paper[]> {
 // UNIFIED SEARCH - Combines all sources with pagination
 // ============================================================================
 
+const activeRequests = new Map<string, AbortController>()
+
 export async function searchAllSources(
   query: string,
   filters?: SearchFilters,
   page = 1,
   pageSize = 50,
 ): Promise<SearchResult> {
-  console.log("[v0] Starting advanced search, page:", page, "query:", query)
+  const requestKey = `${query}::${page}::${JSON.stringify(filters)}`
 
-  const parsedQuery = parseQuery(query)
-  console.log("[v0] Parsed query:", parsedQuery.isAdvanced ? "Advanced" : "Simple", parsedQuery)
-
-  // Search all sources in parallel
-  const results = await Promise.all([
-    searchOpenAlex(query, filters, page, pageSize),
-    searchSemanticScholar(query, filters, page, pageSize),
-    searchArxiv(query, page, pageSize),
-    searchCrossref(query, page, pageSize),
-    searchCore(query, page, pageSize),
-  ])
-
-  // Calculate total results across all sources
-  const totalResults = results.reduce((sum, r) => sum + r.total, 0)
-
-  console.log(
-    "[v0] Results per source:",
-    results.map((r) => `${r.papers.length}/${r.total}`),
-  )
-
-  // Flatten all papers
-  const allPapers = results.flatMap((r) => r.papers)
-
-  console.log("[v0] Deduplicating", allPapers.length, "papers...")
-  let uniquePapers = deduplicatePapers(allPapers)
-  console.log("[v0] After deduplication:", uniquePapers.length, "unique papers")
-
-  if (filters?.openAccessOnly) {
-    uniquePapers = uniquePapers.filter((p) => p.openAccess)
+  if (activeRequests.has(requestKey)) {
+    activeRequests.get(requestKey)?.abort()
+    activeRequests.delete(requestKey)
   }
 
-  if (filters?.minCitations) {
-    uniquePapers = uniquePapers.filter((p) => p.citationCount >= filters.minCitations!)
-  }
+  const controller = new AbortController()
+  activeRequests.set(requestKey, controller)
 
-  if (filters?.author) {
-    const authorLower = filters.author.toLowerCase()
-    uniquePapers = uniquePapers.filter((p) => p.authors.some((a) => a.name.toLowerCase().includes(authorLower)))
-  }
+  try {
+    console.log("[API] Search request:", { query, page, filters })
 
-  if (filters?.venue) {
-    const venueLower = filters.venue.toLowerCase()
-    uniquePapers = uniquePapers.filter((p) => p.venue.toLowerCase().includes(venueLower))
-  }
+    const parsedQuery = parseQuery(query)
 
-  if (filters?.methodology && filters.methodology.length > 0) {
-    uniquePapers = uniquePapers.filter((p) => p.methodology && filters.methodology!.includes(p.methodology))
-  }
+    const timeout = 15000 // 15 seconds
+    const timeoutId = setTimeout(() => controller.abort(), timeout)
 
-  const sortBy: SortOption = filters?.sortBy || "relevance"
-  console.log("[v0] Sorting by:", sortBy)
-  const sortedPapers = sortPapers(uniquePapers, sortBy, parsedQuery)
+    // Search all sources in parallel with abort signal
+    const results = await Promise.all([
+      searchOpenAlex(query, filters, page, pageSize).catch((err) => {
+        console.error("[OpenAlex] Failed:", err)
+        return { papers: [], total: 0 }
+      }),
+      searchSemanticScholar(query, filters, page, pageSize).catch((err) => {
+        console.error("[Semantic Scholar] Failed:", err)
+        return { papers: [], total: 0 }
+      }),
+      searchArxiv(query, page, pageSize).catch((err) => {
+        console.error("[arXiv] Failed:", err)
+        return { papers: [], total: 0 }
+      }),
+      searchCrossref(query, page, pageSize).catch((err) => {
+        console.error("[Crossref] Failed:", err)
+        return { papers: [], total: 0 }
+      }),
+      searchCore(query, page, pageSize).catch((err) => {
+        console.error("[CORE] Failed:", err)
+        return { papers: [], total: 0 }
+      }),
+    ])
 
-  console.log("[v0] Final results:", sortedPapers.length, "papers")
+    clearTimeout(timeoutId)
+    activeRequests.delete(requestKey)
 
-  return {
-    papers: sortedPapers,
-    totalResults,
-    currentPage: page,
-    hasMore: page * pageSize < totalResults,
+    const totalResults = results.reduce((sum, r) => sum + r.total, 0)
+    const allPapers = results.flatMap((r) => r.papers)
+
+    console.log("[API] Raw results:", allPapers.length, "papers from", results.length, "sources")
+
+    // Deduplicate
+    let uniquePapers = deduplicatePapers(allPapers)
+    console.log("[API] After deduplication:", uniquePapers.length, "papers")
+
+    // Apply basic filters BEFORE indexing
+    if (filters?.openAccessOnly) {
+      uniquePapers = uniquePapers.filter((p) => p.openAccess)
+    }
+
+    if (filters?.minCitations) {
+      uniquePapers = uniquePapers.filter((p) => p.citationCount >= filters.minCitations!)
+    }
+
+    if (filters?.author) {
+      const authorLower = filters.author.toLowerCase()
+      uniquePapers = uniquePapers.filter((p) => p.authors.some((a) => a.name.toLowerCase().includes(authorLower)))
+    }
+
+    if (filters?.venue) {
+      const venueLower = filters.venue.toLowerCase()
+      uniquePapers = uniquePapers.filter((p) => p.venue.toLowerCase().includes(venueLower))
+    }
+
+    if (filters?.methodology && filters.methodology.length > 0) {
+      uniquePapers = uniquePapers.filter((p) => p.methodology && filters.methodology!.includes(p.methodology))
+    }
+
+    console.log("[API] After filters:", uniquePapers.length, "papers")
+
+    // Index papers in search engine
+    const searchEngine = getSearchEngine()
+    searchEngine.indexPapers(uniquePapers)
+
+    // Use search engine for ranking and sorting
+    const sortBy = filters?.sortBy || "relevance"
+    const searchResult = searchEngine.search(query, sortBy)
+
+    console.log("[API] Search engine stats:", searchResult.stats)
+    console.log("[API] Final results:", searchResult.papers.length, "papers")
+
+    return {
+      papers: searchResult.papers,
+      totalResults,
+      currentPage: page,
+      hasMore: page * pageSize < totalResults,
+    }
+  } catch (error) {
+    activeRequests.delete(requestKey)
+
+    if (error instanceof Error && error.name === "AbortError") {
+      console.log("[API] Request cancelled or timed out")
+    } else {
+      console.error("[API] Search failed:", error)
+    }
+
+    return {
+      papers: [],
+      totalResults: 0,
+      currentPage: page,
+      hasMore: false,
+    }
   }
 }
 

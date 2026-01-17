@@ -15,6 +15,7 @@ export interface Paper {
   source: "openalex" | "semantic-scholar" | "arxiv" | "crossref" | "core" | "pubmed"
   methodology?: MethodologyType
   openAccess: boolean
+  _score?: number
 }
 
 export interface Author {

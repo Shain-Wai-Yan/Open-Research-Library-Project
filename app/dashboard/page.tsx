@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Sidebar } from "@/components/layout/sidebar"
 import { Header } from "@/components/layout/header"
 import { SearchBar } from "@/components/search/search-bar"
@@ -9,7 +9,8 @@ import { searchPapers } from "@/lib/api-client"
 import type { SearchFilters } from "@/lib/types"
 import type { SearchResult } from "@/lib/api-services"
 import { Button } from "@/components/ui/button"
-import { Loader2 } from "lucide-react"
+import { Loader2, AlertCircle } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 export default function DashboardPage() {
   const [searchResult, setSearchResult] = useState<SearchResult>({
@@ -22,27 +23,59 @@ export default function DashboardPage() {
   const [isSearching, setIsSearching] = useState(false)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [currentQuery, setCurrentQuery] = useState("")
+  const [error, setError] = useState<string | null>(null)
+
+  const prevFiltersRef = useRef<SearchFilters>({})
+
+  useEffect(() => {
+    if (JSON.stringify(filters) !== JSON.stringify(prevFiltersRef.current) && currentQuery) {
+      prevFiltersRef.current = filters
+      handleSearch(currentQuery)
+    }
+  }, [filters])
 
   const handleSearch = async (query: string) => {
     setCurrentQuery(query)
     setIsSearching(true)
-    const results = await searchPapers(query, filters, 1, 50)
-    setSearchResult(results)
-    setIsSearching(false)
+    setError(null)
+
+    try {
+      const results = await searchPapers(query, filters, 1, 50)
+      setSearchResult(results)
+    } catch (err) {
+      console.error("[Dashboard] Search error:", err)
+      setError("Search failed. Please try again.")
+      setSearchResult({
+        papers: [],
+        totalResults: 0,
+        currentPage: 1,
+        hasMore: false,
+      })
+    } finally {
+      setIsSearching(false)
+    }
   }
 
   const handleLoadMore = async () => {
     if (!searchResult.hasMore || isLoadingMore) return
 
     setIsLoadingMore(true)
-    const nextPage = searchResult.currentPage + 1
-    const newResults = await searchPapers(currentQuery, filters, nextPage, 50)
+    setError(null)
 
-    setSearchResult({
-      ...newResults,
-      papers: [...searchResult.papers, ...newResults.papers],
-    })
-    setIsLoadingMore(false)
+    try {
+      const nextPage = searchResult.currentPage + 1
+      const newResults = await searchPapers(currentQuery, filters, nextPage, 50)
+
+      setSearchResult({
+        ...newResults,
+        papers: [...searchResult.papers, ...newResults.papers],
+      })
+    } catch (err) {
+      console.error("[Dashboard] Load more error:", err)
+      setError("Failed to load more results.")
+    } finally {
+      setIsLoadingMore(false)
+    }
   }
 
   return (
@@ -53,37 +86,32 @@ export default function DashboardPage() {
         <Header />
 
         <div className="p-8 max-w-7xl mx-auto">
-          {/* Search Section */}
-          <div className="mb-12">
-            <div className="max-w-4xl mx-auto text-center mb-8">
-              <h1 className="text-4xl font-serif font-bold text-foreground mb-4">Search Across Academic Sources</h1>
-              <p className="text-lg text-muted-foreground">
-                Unified search across OpenAlex, Semantic Scholar, and arXiv
-              </p>
-            </div>
-
+          <div className="mb-8">
             <div className="max-w-4xl mx-auto">
               <SearchBar onSearch={handleSearch} onFilterChange={setFilters} />
             </div>
           </div>
 
-          {/* Results */}
+          {error && (
+            <Alert variant="destructive" className="mb-6">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
           {isSearching ? (
             <div className="space-y-4">
               {[1, 2, 3].map((i) => (
-                <div key={i} className="h-48 rounded-lg bg-muted animate-shimmer" />
+                <div key={i} className="h-48 rounded-lg bg-muted animate-pulse" />
               ))}
             </div>
           ) : searchResult.papers.length > 0 ? (
             <div className="space-y-6">
               <div className="flex items-center justify-between border-b pb-4">
                 <div>
-                  <h2 className="text-xl font-semibold">
-                    Showing {searchResult.papers.length.toLocaleString()} of{" "}
-                    {searchResult.totalResults.toLocaleString()} results
-                  </h2>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Page {searchResult.currentPage} • Aggregated from 5 research databases
+                  <p className="text-sm text-muted-foreground">
+                    {searchResult.papers.length.toLocaleString()} of {searchResult.totalResults.toLocaleString()}{" "}
+                    results
                   </p>
                 </div>
               </div>
@@ -106,27 +134,16 @@ export default function DashboardPage() {
                     {isLoadingMore ? (
                       <>
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Loading more papers...
+                        Loading...
                       </>
                     ) : (
-                      `Load more results (${(searchResult.totalResults - searchResult.papers.length).toLocaleString()} remaining)`
+                      "Load more"
                     )}
                   </Button>
                 </div>
               )}
-
-              {/* End indicator */}
-              {!searchResult.hasMore && searchResult.papers.length > 0 && (
-                <div className="text-center py-8 text-muted-foreground">
-                  <p>You've reached the end of the results</p>
-                </div>
-              )}
             </div>
-          ) : (
-            <div className="text-center py-16">
-              <p className="text-muted-foreground">Start your research journey by searching for papers</p>
-            </div>
-          )}
+          ) : null}
         </div>
       </main>
     </div>
