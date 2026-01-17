@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card } from "@/components/ui/card"
-import { localStorageAPI } from "@/lib/mock-api"
+import { saveInsight } from "@/lib/api-client"
 import type { AtomicInsight } from "@/lib/types"
 
 interface InsightEditorProps {
@@ -18,20 +18,26 @@ interface InsightEditorProps {
 export function InsightEditor({ paperId, onSave }: InsightEditorProps) {
   const [content, setContent] = useState("")
   const [type, setType] = useState<AtomicInsight["type"]>("concept")
+  const [isSaving, setIsSaving] = useState(false)
 
-  const handleSave = () => {
-    const insight: AtomicInsight = {
-      id: Date.now().toString(),
-      paperId,
-      type,
-      content,
-      relatedInsights: [],
-      createdAt: new Date().toISOString(),
-      tags: [],
+  const handleSave = async () => {
+    setIsSaving(true)
+    try {
+      await saveInsight({
+        paperId,
+        type,
+        content,
+        relatedInsights: [],
+        tags: [],
+      })
+      setContent("")
+      onSave?.()
+    } catch (error) {
+      console.error("[InsightEditor] Failed to save:", error)
+      alert("Failed to save insight. Please try again.")
+    } finally {
+      setIsSaving(false)
     }
-    localStorageAPI.saveInsight(insight)
-    setContent("")
-    onSave?.()
   }
 
   return (
@@ -68,9 +74,9 @@ export function InsightEditor({ paperId, onSave }: InsightEditorProps) {
           />
         </div>
 
-        <Button onClick={handleSave} className="w-full">
+        <Button onClick={handleSave} className="w-full" disabled={!content.trim() || isSaving}>
           <Save className="w-4 h-4 mr-2" />
-          Save Insight
+          {isSaving ? "Saving..." : "Save Insight"}
         </Button>
       </div>
     </Card>

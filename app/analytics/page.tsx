@@ -1,11 +1,48 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { Sidebar } from "@/components/layout/sidebar"
 import { Header } from "@/components/layout/header"
 import { Card } from "@/components/ui/card"
 import { BarChart3, TrendingUp, BookOpen, Lightbulb } from "lucide-react"
+import { getCollections, getInsights, getSavedPapers, getLiteratureReviews } from "@/lib/api-client"
 
 export default function AnalyticsPage() {
+  const [stats, setStats] = useState({
+    papers: 0,
+    insights: 0,
+    collections: 0,
+    reviews: 0,
+  })
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    loadAnalytics()
+  }, [])
+
+  const loadAnalytics = async () => {
+    setIsLoading(true)
+    try {
+      const [collections, insights, papers, reviews] = await Promise.all([
+        getCollections(),
+        getInsights(),
+        getSavedPapers(),
+        getLiteratureReviews(),
+      ])
+
+      setStats({
+        papers: papers.length,
+        insights: insights.length,
+        collections: collections.length,
+        reviews: reviews.length,
+      })
+    } catch (error) {
+      console.error("[Analytics] Failed to load:", error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   return (
     <div className="flex min-h-screen">
       <Sidebar />
@@ -24,16 +61,16 @@ export default function AnalyticsPage() {
               <Card className="p-6">
                 <div className="flex items-center justify-between mb-4">
                   <BookOpen className="w-8 h-8 text-blue-500" />
-                  <span className="text-2xl font-bold">0</span>
+                  <span className="text-2xl font-bold">{isLoading ? "..." : stats.papers}</span>
                 </div>
-                <h3 className="font-semibold">Papers Read</h3>
-                <p className="text-sm text-muted-foreground">This month</p>
+                <h3 className="font-semibold">Papers Saved</h3>
+                <p className="text-sm text-muted-foreground">In collections</p>
               </Card>
 
               <Card className="p-6">
                 <div className="flex items-center justify-between mb-4">
                   <Lightbulb className="w-8 h-8 text-amber-500" />
-                  <span className="text-2xl font-bold">0</span>
+                  <span className="text-2xl font-bold">{isLoading ? "..." : stats.insights}</span>
                 </div>
                 <h3 className="font-semibold">Insights Captured</h3>
                 <p className="text-sm text-muted-foreground">Total</p>
@@ -42,7 +79,7 @@ export default function AnalyticsPage() {
               <Card className="p-6">
                 <div className="flex items-center justify-between mb-4">
                   <BarChart3 className="w-8 h-8 text-green-500" />
-                  <span className="text-2xl font-bold">0</span>
+                  <span className="text-2xl font-bold">{isLoading ? "..." : stats.collections}</span>
                 </div>
                 <h3 className="font-semibold">Collections</h3>
                 <p className="text-sm text-muted-foreground">Organized</p>
@@ -51,7 +88,7 @@ export default function AnalyticsPage() {
               <Card className="p-6">
                 <div className="flex items-center justify-between mb-4">
                   <TrendingUp className="w-8 h-8 text-purple-500" />
-                  <span className="text-2xl font-bold">0</span>
+                  <span className="text-2xl font-bold">{isLoading ? "..." : stats.reviews}</span>
                 </div>
                 <h3 className="font-semibold">Reviews Generated</h3>
                 <p className="text-sm text-muted-foreground">Total</p>
