@@ -3,6 +3,7 @@
 import { Sidebar } from "@/components/layout/sidebar"
 import { Header } from "@/components/layout/header"
 import { CollectionManager } from "@/components/collections/collection-manager"
+import { SavedPapersList } from "@/components/papers/saved-papers-list"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 export default function LibraryPage() {
@@ -32,9 +33,7 @@ export default function LibraryPage() {
               </TabsContent>
 
               <TabsContent value="saved">
-                <div className="text-center py-16 text-muted-foreground">
-                  Save papers from search results to see them here
-                </div>
+                <SavedPapersList />
               </TabsContent>
 
               <TabsContent value="notes">
