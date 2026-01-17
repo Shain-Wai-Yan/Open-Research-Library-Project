@@ -1,10 +1,12 @@
 "use client"
 
+import type React from "react"
+
 import { useState, useEffect } from "react"
-import { Search } from "lucide-react"
+import { Search, Trash2 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
-import { getSavedPapers } from "@/lib/api-client"
+import { getSavedPapers, deleteSavedPaper } from "@/lib/api-client"
 import type { SavedPaper } from "@/lib/api-client"
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
@@ -50,6 +52,20 @@ export function CollectionView({ collectionId, collectionName }: CollectionViewP
       console.error("[CollectionView] Error loading papers:", error)
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const handleUnsavePaper = async (paperId: string, e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+
+    if (!confirm("Remove this paper from the collection?")) return
+
+    try {
+      await deleteSavedPaper(paperId)
+      loadPapers()
+    } catch (error) {
+      console.error("[CollectionView] Error removing paper:", error)
     }
   }
 
@@ -115,6 +131,14 @@ export function CollectionView({ collectionId, collectionName }: CollectionViewP
                       )}
                     </div>
                   </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={(e) => handleUnsavePaper(paper.id, e)}
+                    className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
                 </div>
 
                 {paper.abstract && <p className="text-sm text-muted-foreground line-clamp-2">{paper.abstract}</p>}

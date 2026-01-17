@@ -1,10 +1,12 @@
 "use client"
 
+import type React from "react"
+
 import { useState, useEffect } from "react"
-import { Search, Filter } from "lucide-react"
+import { Search, Filter, Trash2 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
-import { getSavedPapers, getCollections } from "@/lib/api-client"
+import { getSavedPapers, getCollections, deleteSavedPaper } from "@/lib/api-client"
 import type { SavedPaper } from "@/lib/api-client"
 import type { Collection } from "@/lib/types"
 import Link from "next/link"
@@ -46,12 +48,10 @@ export function AllSavedPapers() {
   const filterPapers = () => {
     let filtered = papers
 
-    // Filter by collection
     if (selectedCollectionFilter !== "all") {
       filtered = filtered.filter((paper) => paper.collectionId === selectedCollectionFilter)
     }
 
-    // Filter by search query
     if (searchQuery.trim() !== "") {
       const query = searchQuery.toLowerCase()
       filtered = filtered.filter((paper) => {
@@ -67,6 +67,20 @@ export function AllSavedPapers() {
   const getCollectionName = (collectionId: string) => {
     const collection = collections.find((c) => c.id === collectionId)
     return collection?.name || "Unknown Collection"
+  }
+
+  const handleUnsavePaper = async (paperId: string, e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+
+    if (!confirm("Remove this paper from your library?")) return
+
+    try {
+      await deleteSavedPaper(paperId)
+      loadData()
+    } catch (error) {
+      console.error("[AllSavedPapers] Error removing paper:", error)
+    }
   }
 
   if (isLoading) {
@@ -146,6 +160,14 @@ export function AllSavedPapers() {
                       )}
                     </div>
                   </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={(e) => handleUnsavePaper(paper.id, e)}
+                    className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
                 </div>
 
                 {paper.abstract && <p className="text-sm text-muted-foreground line-clamp-2">{paper.abstract}</p>}

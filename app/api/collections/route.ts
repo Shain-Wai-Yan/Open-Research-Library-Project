@@ -1,8 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 
-// Using raw Supabase client instead of typed client
-
 function getSupabaseAdmin() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -35,13 +33,8 @@ export async function GET() {
     const { data, error } = await supabase
       .from("collections")
       .select(`
-        id,
-        name,
-        description,
-        color,
-        created_at,
-        updated_at,
-        saved_papers!collection_id(count)
+        *,
+        paper_count:saved_papers(count)
       `)
       .order("created_at", { ascending: false })
 
@@ -57,10 +50,8 @@ export async function GET() {
       color: collection.color,
       created_at: collection.created_at,
       updated_at: collection.updated_at,
-      paper_count:
-        Array.isArray(collection.saved_papers) && collection.saved_papers.length > 0
-          ? collection.saved_papers[0].count
-          : 0,
+      paperIds: [],
+      paper_count: collection.paper_count?.[0]?.count || 0,
     }))
 
     return NextResponse.json(collectionsWithCounts)
@@ -84,7 +75,6 @@ export async function POST(request: NextRequest) {
     const anonymousUserId = "00000000-0000-0000-0000-000000000000"
 
     if (id) {
-      // Update existing collection
       const { data, error } = await supabase
         .from("collections")
         .update({
