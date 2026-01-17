@@ -112,6 +112,80 @@ async function searchOpenAlex(
   }
 }
 
+async function getOpenAlexCitations(openalexId: string) {
+  try {
+    // Extract the work ID from full URL if needed
+    const workId = openalexId.includes("openalex.org") ? openalexId.split("/").pop() : openalexId
+
+    console.log("[OpenAlex Citations] Fetching for:", workId)
+
+    // Fetch the paper with its cited_by and referenced_works
+    const response = await fetch(
+      `${API_CONFIG.openalex.baseUrl}/works/${workId}?select=id,title,cited_by_count,referenced_works_count,cited_by_api_url,referenced_works`,
+    )
+
+    if (!response.ok) {
+      console.log("[OpenAlex Citations] API error:", response.status)
+      return { citations: [], references: [] }
+    }
+
+    const paper = await response.json()
+
+    // Fetch citing papers (limited to 20 for performance)
+    let citations: any[] = []
+    if (paper.cited_by_api_url) {
+      const citationsRes = await fetch(`${paper.cited_by_api_url}&per-page=20`)
+      if (citationsRes.ok) {
+        const citationsData = await citationsRes.json()
+        citations = citationsData.results || []
+      }
+    }
+
+    // Fetch referenced papers (limited to 20)
+    let references: any[] = []
+    if (paper.referenced_works && paper.referenced_works.length > 0) {
+      const refIds = paper.referenced_works.slice(0, 20).join("|")
+      const referencesRes = await fetch(`${API_CONFIG.openalex.baseUrl}/works?filter=openalex_id:${refIds}`)
+      if (referencesRes.ok) {
+        const referencesData = await referencesRes.json()
+        references = referencesData.results || []
+      }
+    }
+
+    const mapOpenAlexPaper = (item: any) => ({
+      id: item.id,
+      title: item.title || "Untitled",
+      authors:
+        item.authorships?.map((a: any) => ({
+          id: a.author.id,
+          name: a.author.display_name,
+        })) || [],
+      abstract: item.abstract || "",
+      publicationDate: item.publication_date || "",
+      venue: item.primary_location?.source?.display_name || "",
+      citationCount: item.cited_by_count || 0,
+      referenceCount: item.referenced_works_count || 0,
+      fieldsOfStudy: item.topics?.map((t: any) => t.display_name) || [],
+      doi: item.doi ? item.doi.replace("https://doi.org/", "") : undefined,
+      source: "openalex" as const,
+      openAccess: item.open_access?.is_oa || false,
+    })
+
+    console.log("[OpenAlex Citations] Found:", {
+      citations: citations.length,
+      references: references.length,
+    })
+
+    return {
+      citations: citations.map(mapOpenAlexPaper),
+      references: references.map(mapOpenAlexPaper),
+    }
+  } catch (error) {
+    console.error("[OpenAlex Citations] Error:", error)
+    return { citations: [], references: [] }
+  }
+}
+
 // ============================================================================
 // 2. SEMANTIC SCHOLAR API - Citation network & recommendations
 // ============================================================================
@@ -589,27 +663,59 @@ export async function searchAllSources(
 export async function getEnhancedCitationNetwork(paperId: string, doi?: string) {
   console.log("[v0] Fetching citation network for:", { paperId, doi })
 
-  // If we have DOI, use that for both APIs
-  const lookupId = doi || paperId
+  // Priority: OpenAlex (fast & reliable) > Semantic Scholar > OpenCitations
+  let citations: any[] = []
+  let references: any[] = []
 
-  // Use DOI for Semantic Scholar if available, otherwise try paperId
-  const semanticPromise = doi ? getSemanticScholarCitations(`DOI:${doi}`) : getSemanticScholarCitations(paperId)
+  // 1. Try OpenAlex first if we have an OpenAlex ID
+  if (paperId.includes("openalex.org")) {
+    const openAlexData = await getOpenAlexCitations(paperId)
+    citations = openAlexData.citations
+    references = openAlexData.references
 
-  const openCitationsPromise = doi ? getOpenCitations(doi) : Promise.resolve(null)
+    console.log("[v0] OpenAlex results:", {
+      citations: citations.length,
+      references: references.length,
+    })
 
-  const [semanticData, openCitationsData] = await Promise.all([semanticPromise, openCitationsPromise])
+    // If OpenAlex gave us results, return early
+    if (citations.length > 0 || references.length > 0) {
+      return {
+        citations,
+        references,
+        citationCount: citations.length,
+        referenceCount: references.length,
+      }
+    }
+  }
 
-  console.log("[v0] Citation results:", {
-    semanticCitations: semanticData.citations.length,
-    semanticReferences: semanticData.references.length,
-    openCitationsCitations: openCitationsData?.citationCount || 0,
-  })
+  // 2. Fallback to Semantic Scholar if we have DOI
+  if (doi && citations.length === 0) {
+    const semanticData = await getSemanticScholarCitations(`DOI:${doi}`)
+    citations = semanticData.citations
+    references = semanticData.references
+
+    console.log("[v0] Semantic Scholar results:", {
+      citations: citations.length,
+      references: references.length,
+    })
+  }
+
+  // 3. Last resort: Try OpenCitations (often slow)
+  let openCitationsData = null
+  if (doi && citations.length === 0) {
+    openCitationsData = await getOpenCitations(doi)
+    console.log("[v0] OpenCitations results:", {
+      citationCount: openCitationsData?.citationCount || 0,
+      referenceCount: openCitationsData?.referenceCount || 0,
+    })
+  }
 
   return {
-    citations: semanticData.citations,
-    references: semanticData.references,
-    citationCount: openCitationsData?.citationCount || semanticData.citations.length,
-    referenceCount: openCitationsData?.referenceCount || semanticData.references.length,
+    citations,
+    references,
+    citationCount: openCitationsData?.citationCount || citations.length,
+    referenceCount: openCitationsData?.referenceCount || references.length,
   }
 }
 
