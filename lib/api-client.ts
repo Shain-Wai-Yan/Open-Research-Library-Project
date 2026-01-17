@@ -27,7 +27,6 @@ import {
 /**
  * Search papers across 8 sources: OpenAlex, Semantic Scholar, arXiv,
  * Crossref, OpenCitations, Unpaywall, CORE, and PubMed
- * Now uses server-side API route to bypass CORS and regional blocking
  */
 export async function searchPapers(
   query: string,
@@ -36,40 +35,15 @@ export async function searchPapers(
   pageSize = 50,
 ): Promise<SearchResult> {
   try {
-    const params = new URLSearchParams({
-      q: query,
-      page: page.toString(),
-      pageSize: pageSize.toString(),
-    })
-
-    if (filters?.yearFrom) params.append("yearFrom", filters.yearFrom.toString())
-    if (filters?.yearTo) params.append("yearTo", filters.yearTo.toString())
-    if (filters?.minCitations) params.append("minCitations", filters.minCitations.toString())
-    if (filters?.openAccessOnly) params.append("openAccessOnly", "true")
-    if (filters?.author) params.append("author", filters.author)
-    if (filters?.venue) params.append("venue", filters.venue)
-    if (filters?.methodology?.length) params.append("methodology", filters.methodology.join(","))
-    if (filters?.sortBy) params.append("sortBy", filters.sortBy)
-
-    const response = await fetch(`/api/search?${params.toString()}`)
-
-    if (!response.ok) {
-      throw new Error(`API error: ${response.statusText}`)
-    }
-
-    return await response.json()
+    console.log("[API Client] Starting direct search")
+    return await searchAllSources(query, filters, page, pageSize)
   } catch (error) {
     console.error("[API Client] Search error:", error)
-    try {
-      return await searchAllSources(query, filters, page, pageSize)
-    } catch (fallbackError) {
-      console.error("[API Client] Fallback also failed:", fallbackError)
-      return {
-        papers: [],
-        totalResults: 0,
-        currentPage: 1,
-        hasMore: false,
-      }
+    return {
+      papers: [],
+      totalResults: 0,
+      currentPage: 1,
+      hasMore: false,
     }
   }
 }
