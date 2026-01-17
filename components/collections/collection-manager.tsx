@@ -38,6 +38,8 @@ export function CollectionManager({ onCollectionClick }: CollectionManagerProps)
   const loadCollections = async () => {
     setIsLoading(true)
     const data = await getCollections()
+    console.log("[v0] Collections received in CollectionManager:", data)
+    console.log("[v0] First collection paper_count:", data[0]?.paper_count)
     setCollections(data)
     setIsLoading(false)
   }
@@ -130,31 +132,36 @@ export function CollectionManager({ onCollectionClick }: CollectionManagerProps)
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {collections.map((collection) => (
-            <Card
-              key={collection.id}
-              className="p-4 hover:shadow-md transition-shadow cursor-pointer"
-              onClick={() => handleCollectionClick(collection)}
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-lg bg-${collection.color}-500 flex items-center justify-center`}>
-                    <FolderOpen className="w-5 h-5 text-white" />
+          {collections.map((collection) => {
+            const paperCount = (collection as any).paper_count || 0
+            console.log("[v0] Rendering collection:", collection.name, "with paper_count:", paperCount)
+
+            return (
+              <Card
+                key={collection.id}
+                className="p-4 hover:shadow-md transition-shadow cursor-pointer"
+                onClick={() => handleCollectionClick(collection)}
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-lg bg-${collection.color}-500 flex items-center justify-center`}>
+                      <FolderOpen className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold">{collection.name}</h4>
+                      <p className="text-xs text-muted-foreground">{paperCount} papers</p>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="font-semibold">{collection.name}</h4>
-                    <p className="text-xs text-muted-foreground">{(collection as any).paper_count || 0} papers</p>
-                  </div>
+                  <Button variant="ghost" size="icon" onClick={(e) => handleDelete(collection.id!, e)}>
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
                 </div>
-                <Button variant="ghost" size="icon" onClick={(e) => handleDelete(collection.id!, e)}>
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              </div>
-              {collection.description && (
-                <p className="mt-3 text-sm text-muted-foreground line-clamp-2">{collection.description}</p>
-              )}
-            </Card>
-          ))}
+                {collection.description && (
+                  <p className="mt-3 text-sm text-muted-foreground line-clamp-2">{collection.description}</p>
+                )}
+              </Card>
+            )
+          })}
         </div>
       )}
     </div>

@@ -30,34 +30,33 @@ export async function GET() {
   try {
     const supabase = getSupabaseAdmin()
 
-    const { data: collections, error: collectionsError } = await supabase
+    const { data, error } = await supabase
       .from("collections")
-      .select("*")
+      .select(`
+        *,
+        paper_count:saved_papers(count)
+      `)
       .order("created_at", { ascending: false })
 
-    if (collectionsError) {
-      return NextResponse.json({ error: collectionsError.message }, { status: 500 })
+    if (error) {
+      console.error("[API] Supabase error:", error.message)
+      return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    const collectionsWithCounts = await Promise.all(
-      (collections || []).map(async (collection: any) => {
-        // Count how many saved_papers have this collection_id
-        const { count } = await supabase
-          .from("saved_papers")
-          .select("*", { count: "exact", head: true })
-          .eq("collection_id", collection.id)
-
-        return {
-          ...collection,
-          paperIds: [],
-          paper_count: count || 0,
-        }
-      }),
-    )
+    const collectionsWithCounts = (data || []).map((collection: any) => ({
+      id: collection.id,
+      name: collection.name,
+      description: collection.description,
+      color: collection.color,
+      created_at: collection.created_at,
+      updated_at: collection.updated_at,
+      paperIds: [],
+      paper_count: collection.paper_count?.[0]?.count || 0,
+    }))
 
     return NextResponse.json(collectionsWithCounts)
   } catch (err) {
-    console.error("Collection fetch error:", err)
+    console.error("[API] Unexpected error:", err)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
