@@ -36,40 +36,28 @@ export async function GET() {
       .order("created_at", { ascending: false })
 
     if (collectionsError) {
-      console.error("[v0] Collections error:", collectionsError.message)
       return NextResponse.json({ error: collectionsError.message }, { status: 500 })
     }
 
     const collectionsWithCounts = await Promise.all(
       (collections || []).map(async (collection: any) => {
-        const { count, error: countError } = await supabase
+        // Count how many saved_papers have this collection_id
+        const { count } = await supabase
           .from("saved_papers")
           .select("*", { count: "exact", head: true })
           .eq("collection_id", collection.id)
 
-        if (countError) {
-          console.error("[v0] Count error for collection", collection.id, ":", countError.message)
-        }
-
-        console.log("[v0] Collection", collection.name, "has", count, "papers")
-
         return {
-          id: collection.id,
-          name: collection.name,
-          description: collection.description,
-          color: collection.color,
-          created_at: collection.created_at,
-          updated_at: collection.updated_at,
+          ...collection,
           paperIds: [],
           paper_count: count || 0,
         }
       }),
     )
 
-    console.log("[v0] Returning collections with counts:", collectionsWithCounts)
     return NextResponse.json(collectionsWithCounts)
   } catch (err) {
-    console.error("[v0] Unexpected error:", err)
+    console.error("Collection fetch error:", err)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
