@@ -131,6 +131,49 @@ export default function TestSupabasePage() {
     setLoading(false)
   }
 
+  const testCreateInsight = async () => {
+    setLoading(true)
+    try {
+      console.log("[v0] Testing POST /api/insights...")
+      const response = await fetch("/api/insights", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          paperId: "test-paper-" + Date.now(),
+          type: "concept",
+          content: "This is a test insight created from diagnostic page at " + new Date().toISOString(),
+        }),
+      })
+      const data = await response.json()
+
+      console.log("[v0] Insight create response:", data)
+
+      if (response.ok) {
+        setStatus((prev: any) => ({
+          ...prev,
+          createInsightTest: "SUCCESS",
+          createInsightResponse: data,
+          createInsightMessage: "Insight created successfully!",
+        }))
+      } else {
+        setStatus((prev: any) => ({
+          ...prev,
+          createInsightTest: "FAILED",
+          createInsightError: data,
+          createInsightMessage: data.error || "Unknown error",
+        }))
+      }
+    } catch (error: any) {
+      setStatus((prev: any) => ({
+        ...prev,
+        createInsightTest: "ERROR",
+        createInsightError: error.message,
+        createInsightMessage: error.message,
+      }))
+    }
+    setLoading(false)
+  }
+
   const testSavedPapersAPI = async () => {
     setLoading(true)
     try {
@@ -159,6 +202,72 @@ export default function TestSupabasePage() {
         savedPapersTest: "ERROR",
         savedPapersError: error.message,
         savedPapersMessage: error.message,
+      }))
+    }
+    setLoading(false)
+  }
+
+  const testSavePaper = async () => {
+    setLoading(true)
+    try {
+      const collectionsResponse = await fetch("/api/collections")
+      const collections = await collectionsResponse.json()
+
+      if (!collections || collections.length === 0) {
+        setStatus((prev: any) => ({
+          ...prev,
+          savePaperTest: "FAILED",
+          savePaperError: "No collections found. Create a collection first.",
+          savePaperMessage: "No collections available",
+        }))
+        setLoading(false)
+        return
+      }
+
+      console.log("[v0] Testing POST /api/saved-papers...")
+      const response = await fetch("/api/saved-papers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          collectionId: collections[0].id,
+          paperId: "test-paper-" + Date.now(),
+          title: "Test Paper from Diagnostic Page",
+          authors: ["Test Author 1", "Test Author 2"],
+          year: 2024,
+          abstract: "This is a test paper abstract created from diagnostic page",
+          citations: 42,
+          doi: "10.1234/test",
+          pdfUrl: "https://example.com/test.pdf",
+          source: "test",
+          notes: "Created at " + new Date().toISOString(),
+        }),
+      })
+      const data = await response.json()
+
+      console.log("[v0] Save paper response:", data)
+
+      if (response.ok) {
+        setStatus((prev: any) => ({
+          ...prev,
+          savePaperTest: "SUCCESS",
+          savePaperResponse: data,
+          savePaperMessage: `Paper saved to collection "${collections[0].name}"`,
+        }))
+      } else {
+        setStatus((prev: any) => ({
+          ...prev,
+          savePaperTest: "FAILED",
+          savePaperError: data,
+          savePaperMessage: data.error || "Unknown error",
+        }))
+      }
+    } catch (error: any) {
+      console.error("[v0] Save paper error:", error)
+      setStatus((prev: any) => ({
+        ...prev,
+        savePaperTest: "ERROR",
+        savePaperError: error.message,
+        savePaperMessage: error.message,
       }))
     }
     setLoading(false)
@@ -223,7 +332,7 @@ export default function TestSupabasePage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto p-8 max-w-4xl">
+      <div className="container mx-auto p-8 max-w-6xl">
         {/* Header */}
         <div className="flex items-center gap-4 mb-8">
           <Link href="/dashboard">
@@ -324,6 +433,19 @@ export default function TestSupabasePage() {
                     {JSON.stringify(status.insightsError, null, 2)}
                   </pre>
                 )}
+                <div className="mt-3">
+                  <Button size="sm" variant="outline" onClick={testCreateInsight} disabled={loading}>
+                    Test CREATE
+                  </Button>
+                  {status.createInsightTest && (
+                    <ResultBadge test={status.createInsightTest} message={status.createInsightMessage} />
+                  )}
+                  {status.createInsightError && (
+                    <pre className="mt-2 p-2 bg-red-50 dark:bg-red-950 text-red-800 dark:text-red-200 rounded text-xs overflow-auto max-h-32">
+                      {JSON.stringify(status.createInsightError, null, 2)}
+                    </pre>
+                  )}
+                </div>
               </div>
 
               {/* Saved Papers */}
@@ -342,6 +464,19 @@ export default function TestSupabasePage() {
                     {JSON.stringify(status.savedPapersError, null, 2)}
                   </pre>
                 )}
+                <div className="mt-3">
+                  <Button size="sm" variant="outline" onClick={testSavePaper} disabled={loading}>
+                    Test SAVE
+                  </Button>
+                  {status.savePaperTest && (
+                    <ResultBadge test={status.savePaperTest} message={status.savePaperMessage} />
+                  )}
+                  {status.savePaperError && (
+                    <pre className="mt-2 p-2 bg-red-50 dark:bg-red-950 text-red-800 dark:text-red-200 rounded text-xs overflow-auto max-h-32">
+                      {JSON.stringify(status.savePaperError, null, 2)}
+                    </pre>
+                  )}
+                </div>
               </div>
 
               {/* Literature Reviews */}

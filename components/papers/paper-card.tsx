@@ -40,19 +40,8 @@ export function PaperCard({ paper, onSave }: PaperCardProps) {
 
     setIsSaving(true)
     try {
-      await savePaperToCollection({
-        collectionId: selectedCollection,
-        paperId: paper.id,
-        title: paper.title,
-        authors: paper.authors?.map((a) => a.name) || [],
-        year: paper.publicationDate ? new Date(paper.publicationDate).getFullYear() : null,
-        abstract: paper.abstract || "",
-        citations: paper.citationCount || 0,
-        doi: paper.doi || null,
-        pdfUrl: paper.pdfUrl || null,
-        source: paper.source || "unknown",
-        notes: null,
-      })
+      console.log("[v0] Saving paper to collection...")
+      await savePaperToCollection(selectedCollection, paper)
       onSave?.(paper.id)
       setIsDialogOpen(false)
       setSelectedCollection("")
