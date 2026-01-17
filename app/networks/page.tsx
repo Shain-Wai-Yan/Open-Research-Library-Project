@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
-import { Network, AlertCircle, Loader2, Info, Maximize, Download, Filter } from "lucide-react"
+import { Network, AlertCircle, Loader2, Maximize, Download, Filter } from "lucide-react"
 import { getCollections, getSavedPapers, getCitationNetwork } from "@/lib/api-client"
 import type { SavedPaper } from "@/lib/storage-adapter"
 import { useToast } from "@/hooks/use-toast"
@@ -329,40 +329,6 @@ export default function NetworksPage() {
               </Card>
             ) : (
               <div className="space-y-6">
-                <Card className="p-4 bg-accent/50 border-accent">
-                  <div className="flex gap-3">
-                    <Info className="w-5 h-5 text-accent-foreground shrink-0 mt-0.5" />
-                    <div className="text-sm text-accent-foreground space-y-1">
-                      <p className="font-medium">Industry Best Practices Implemented:</p>
-                      <ul className="list-disc list-inside space-y-1 text-xs">
-                        <li>
-                          <strong>Log-scale node sizing</strong> - Prevents citation outliers from dominating (VOSviewer
-                          methodology)
-                        </li>
-                        <li>
-                          <strong>Dynamic HSL coloring</strong> - Unlimited field colors with consistent academic
-                          palette
-                        </li>
-                        <li>
-                          <strong>Recency indicators</strong> - Papers from last 2 years glow (Connected Papers feature)
-                        </li>
-                        <li>
-                          <strong>Citation-weighted links</strong> - Thickness reflects connection strength
-                        </li>
-                        <li>
-                          <strong>Cluster detection</strong> - Identifies research silos and interdisciplinary bridges
-                        </li>
-                        <li>
-                          <strong>Force-directed layout</strong> - Industry-standard D3 physics simulation
-                        </li>
-                        <li>
-                          <strong>Interactive controls</strong> - Zoom, pan, filter, and export capabilities
-                        </li>
-                      </ul>
-                    </div>
-                  </div>
-                </Card>
-
                 <Card className="p-6">
                   <div className="space-y-4">
                     <div>
