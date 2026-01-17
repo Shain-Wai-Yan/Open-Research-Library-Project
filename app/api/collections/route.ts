@@ -30,30 +30,43 @@ export async function GET() {
   try {
     const supabase = getSupabaseAdmin()
 
-    const { data, error } = await supabase
+    const { data: collections, error: collectionsError } = await supabase
       .from("collections")
-      .select(`
-        *,
-        paper_count:saved_papers(count)
-      `)
+      .select("*")
       .order("created_at", { ascending: false })
 
-    if (error) {
-      console.error("[API] Supabase error:", error.message)
-      return NextResponse.json({ error: error.message }, { status: 500 })
+    if (collectionsError) {
+      console.error("[API] Supabase error:", collectionsError.message)
+      return NextResponse.json({ error: collectionsError.message }, { status: 500 })
     }
 
-    const collectionsWithCounts = (data || []).map((collection: any) => ({
-      id: collection.id,
-      name: collection.name,
-      description: collection.description,
-      color: collection.color,
-      created_at: collection.created_at,
-      updated_at: collection.updated_at,
-      paperIds: [],
-      paper_count: collection.paper_count?.[0]?.count || 0,
-    }))
+    const collectionsWithCounts = await Promise.all(
+      (collections || []).map(async (collection: any) => {
+        const { count, error: countError } = await supabase
+          .from("saved_papers")
+          .select("*", { count: "exact", head: true })
+          .eq("collection_id", collection.id)
 
+        if (countError) {
+          console.error(`[API] Error counting papers for collection ${collection.id}:`, countError.message)
+        }
+
+        console.log(`[v0] Collection "${collection.name}" (${collection.id}) has ${count || 0} papers`)
+
+        return {
+          id: collection.id,
+          name: collection.name,
+          description: collection.description,
+          color: collection.color,
+          created_at: collection.created_at,
+          updated_at: collection.updated_at,
+          paperIds: [],
+          paper_count: count || 0,
+        }
+      }),
+    )
+
+    console.log("[v0] Returning collections with counts:", collectionsWithCounts)
     return NextResponse.json(collectionsWithCounts)
   } catch (err) {
     console.error("[API] Unexpected error:", err)
