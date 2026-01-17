@@ -29,6 +29,7 @@ export async function getCollections(): Promise<Collection[]> {
         color: string
         created_at: string
         updated_at?: string
+        paper_count?: number
       }) => ({
         id: row.id,
         name: row.name,
@@ -37,6 +38,7 @@ export async function getCollections(): Promise<Collection[]> {
         paperIds: [],
         createdAt: row.created_at,
         updatedAt: row.updated_at || row.created_at,
+        paperCount: row.paper_count || 0,
       }),
     )
   } catch (err) {
@@ -76,6 +78,7 @@ export async function saveCollection(
       paperIds: [],
       createdAt: data.created_at,
       updatedAt: data.updated_at,
+      paperCount: data.paper_count || 0,
     }
   } catch (err) {
     console.error("[Storage] API error, using localStorage:", err)
@@ -86,6 +89,7 @@ export async function saveCollection(
       paperIds: collection.paperIds || [],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
+      paperCount: collection.paperCount || 0,
     }
 
     const index = collections.findIndex((c) => c.id === newCollection.id)

@@ -30,33 +30,35 @@ export async function GET() {
   try {
     const supabase = getSupabaseAdmin()
 
-    const { data, error } = await supabase
-      .from("collections")
-      .select(`
-        *,
-        paper_count:saved_papers(count)
-      `)
+    const { data: collections, error: collectionsError } = await supabase
+      .from("collections_with_counts")
+      .select("*")
       .order("created_at", { ascending: false })
 
-    if (error) {
-      console.error("[API] Supabase error:", error.message)
-      return NextResponse.json({ error: error.message }, { status: 500 })
+    if (collectionsError) {
+      console.error("[v0] Collections error:", collectionsError.message)
+      return NextResponse.json({ error: collectionsError.message }, { status: 500 })
     }
 
-    const collectionsWithCounts = (data || []).map((collection: any) => ({
-      id: collection.id,
-      name: collection.name,
-      description: collection.description,
-      color: collection.color,
-      created_at: collection.created_at,
-      updated_at: collection.updated_at,
-      paperIds: [],
-      paper_count: collection.paper_count?.[0]?.count || 0,
-    }))
+    const collectionsWithCounts = (collections || []).map((collection: any) => {
+      console.log("[v0] Collection", collection.name, "has", collection.paper_count, "papers")
 
+      return {
+        id: collection.id,
+        name: collection.name,
+        description: collection.description,
+        color: collection.color,
+        created_at: collection.created_at,
+        updated_at: collection.updated_at,
+        paperIds: [],
+        paper_count: collection.paper_count,
+      }
+    })
+
+    console.log("[v0] Returning collections with counts:", collectionsWithCounts)
     return NextResponse.json(collectionsWithCounts)
   } catch (err) {
-    console.error("[API] Unexpected error:", err)
+    console.error("[v0] Unexpected error:", err)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

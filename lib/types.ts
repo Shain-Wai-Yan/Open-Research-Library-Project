@@ -39,6 +39,7 @@ export interface Collection {
   createdAt: string
   updatedAt: string
   color: string
+  paperCount?: number
 }
 
 export interface Note {

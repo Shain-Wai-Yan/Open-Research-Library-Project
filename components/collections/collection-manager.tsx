@@ -38,8 +38,6 @@ export function CollectionManager({ onCollectionClick }: CollectionManagerProps)
   const loadCollections = async () => {
     setIsLoading(true)
     const data = await getCollections()
-    console.log("[v0] Collections received in CollectionManager:", data)
-    console.log("[v0] First collection paper_count:", data[0]?.paper_count)
     setCollections(data)
     setIsLoading(false)
   }
@@ -133,8 +131,7 @@ export function CollectionManager({ onCollectionClick }: CollectionManagerProps)
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {collections.map((collection) => {
-            const paperCount = (collection as any).paper_count || 0
-            console.log("[v0] Rendering collection:", collection.name, "with paper_count:", paperCount)
+            const paperCount = collection.paperCount || 0
 
             return (
               <Card
@@ -149,7 +146,7 @@ export function CollectionManager({ onCollectionClick }: CollectionManagerProps)
                     </div>
                     <div>
                       <h4 className="font-semibold">{collection.name}</h4>
-                      <p className="text-xs text-muted-foreground">{paperCount} papers</p>
+                      <p className="text-sm text-muted-foreground">{paperCount} papers</p>
                     </div>
                   </div>
                   <Button variant="ghost" size="icon" onClick={(e) => handleDelete(collection.id!, e)}>
