@@ -1,9 +1,31 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { getSupabaseAdmin, isSupabaseAdminConfigured } from "@/lib/supabase-server"
+import { createClient } from "@supabase/supabase-js"
+
+// Using raw Supabase client instead of typed client
+
+function getSupabaseAdmin() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  if (!supabaseUrl || !supabaseServiceKey) {
+    throw new Error("Missing Supabase environment variables")
+  }
+
+  return createClient(supabaseUrl, supabaseServiceKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  })
+}
+
+function isSupabaseConfigured(): boolean {
+  return !!(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY)
+}
 
 // GET /api/collections - Get all collections
 export async function GET() {
-  if (!isSupabaseAdminConfigured()) {
+  if (!isSupabaseConfigured()) {
     return NextResponse.json({ error: "Supabase not configured" }, { status: 500 })
   }
 
@@ -16,7 +38,7 @@ export async function GET() {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    return NextResponse.json(data)
+    return NextResponse.json(data || [])
   } catch (err) {
     console.error("[API] Unexpected error:", err)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
@@ -25,7 +47,7 @@ export async function GET() {
 
 // POST /api/collections - Create or update collection
 export async function POST(request: NextRequest) {
-  if (!isSupabaseAdminConfigured()) {
+  if (!isSupabaseConfigured()) {
     return NextResponse.json({ error: "Supabase not configured" }, { status: 500 })
   }
 
@@ -57,34 +79,39 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json(data)
     } else {
-      // Create new collection
-      const { data, error } = await supabase
-        .from("collections")
-        .insert({
-          user_id: anonymousUserId,
-          name,
-          description,
-          color,
-        })
-        .select()
-        .single()
+      const insertData = {
+        user_id: anonymousUserId,
+        name: name as string,
+        description: description as string | null,
+        color: (color as string) || "#3B82F6",
+      }
+
+      const { data, error } = await supabase.from("collections").insert(insertData).select().single()
 
       if (error) {
-        console.error("[API] Insert error:", error.message)
-        return NextResponse.json({ error: error.message }, { status: 500 })
+        console.error("[API] Insert error:", error.message, error.code, error.details)
+        return NextResponse.json(
+          {
+            error: error.message,
+            code: error.code,
+            details: error.details,
+          },
+          { status: 500 },
+        )
       }
 
       return NextResponse.json(data)
     }
   } catch (err) {
     console.error("[API] Unexpected error:", err)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    const message = err instanceof Error ? err.message : "Internal server error"
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }
 
 // DELETE /api/collections?id=xxx
 export async function DELETE(request: NextRequest) {
-  if (!isSupabaseAdminConfigured()) {
+  if (!isSupabaseConfigured()) {
     return NextResponse.json({ error: "Supabase not configured" }, { status: 500 })
   }
 
