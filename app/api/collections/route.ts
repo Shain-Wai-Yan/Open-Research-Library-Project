@@ -35,8 +35,13 @@ export async function GET() {
     const { data, error } = await supabase
       .from("collections")
       .select(`
-        *,
-        saved_papers(count)
+        id,
+        name,
+        description,
+        color,
+        created_at,
+        updated_at,
+        saved_papers!collection_id(count)
       `)
       .order("created_at", { ascending: false })
 
@@ -46,9 +51,16 @@ export async function GET() {
     }
 
     const collectionsWithCounts = (data || []).map((collection: any) => ({
-      ...collection,
-      paper_count: collection.saved_papers?.[0]?.count || 0,
-      saved_papers: undefined, // Remove the nested object
+      id: collection.id,
+      name: collection.name,
+      description: collection.description,
+      color: collection.color,
+      created_at: collection.created_at,
+      updated_at: collection.updated_at,
+      paper_count:
+        Array.isArray(collection.saved_papers) && collection.saved_papers.length > 0
+          ? collection.saved_papers[0].count
+          : 0,
     }))
 
     return NextResponse.json(collectionsWithCounts)
