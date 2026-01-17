@@ -153,11 +153,19 @@ export function mergePapers(papers: Paper[]): Paper {
     }
 
     // Merge authors (avoid duplicates)
-    const existingAuthorNames = new Set(merged.authors.map((a) => a.name.toLowerCase()))
+    const existingAuthorNames = new Set(
+      merged.authors
+        .filter((a) => a && typeof a.name === "string") // Filter valid authors
+        .map((a) => a.name.toLowerCase()),
+    )
     for (const author of paper.authors) {
-      if (!existingAuthorNames.has(author.name.toLowerCase())) {
-        merged.authors.push(author)
-        existingAuthorNames.add(author.name.toLowerCase())
+      // Only process authors with valid string names
+      if (author && typeof author.name === "string") {
+        const authorNameLower = author.name.toLowerCase()
+        if (!existingAuthorNames.has(authorNameLower)) {
+          merged.authors.push(author)
+          existingAuthorNames.add(authorNameLower)
+        }
       }
     }
 

@@ -519,7 +519,9 @@ export async function searchAllSources(
 
     if (filters?.author) {
       const authorLower = filters.author.toLowerCase()
-      uniquePapers = uniquePapers.filter((p) => p.authors.some((a) => a.name.toLowerCase().includes(authorLower)))
+      uniquePapers = uniquePapers.filter((p) =>
+        p.authors.some((a) => a && typeof a.name === "string" && a.name.toLowerCase().includes(authorLower)),
+      )
     }
 
     if (filters?.venue) {
