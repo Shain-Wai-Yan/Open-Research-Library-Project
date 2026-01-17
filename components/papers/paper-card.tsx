@@ -60,14 +60,14 @@ export function PaperCard({ paper, onSave }: PaperCardProps) {
 
   return (
     <>
-      <Card className="p-6 hover:shadow-lg transition-shadow">
+      <Card className="p-6 border-2 hover:border-primary/50 transition-all duration-300 hover-lift group animate-slide-up">
         <div className="space-y-4">
           {/* Header */}
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1">
               <Link
                 href={`/paper/${paper.id}`}
-                className="text-lg font-serif font-semibold text-foreground hover:text-accent transition-colors"
+                className="text-lg font-serif font-semibold text-foreground hover:text-primary transition-colors duration-300 group-hover:text-primary"
               >
                 {paper.title}
               </Link>
@@ -80,7 +80,12 @@ export function PaperCard({ paper, onSave }: PaperCardProps) {
               </div>
             </div>
 
-            <Button variant="ghost" size="icon" onClick={handleSaveClick}>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleSaveClick}
+              className="hover:bg-primary/10 hover:text-primary transition-all duration-300 hover:scale-110"
+            >
               <BookmarkPlus className="w-5 h-5" />
             </Button>
           </div>
@@ -88,28 +93,33 @@ export function PaperCard({ paper, onSave }: PaperCardProps) {
           {/* Abstract */}
           <p className="text-sm text-muted-foreground line-clamp-3">{paper.abstract}</p>
 
-          {/* Metadata */}
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="secondary">{paper.citationCount} citations</Badge>
+            <Badge variant="secondary" className="gradient-teal text-white border-0">
+              {paper.citationCount} citations
+            </Badge>
             {paper.methodology && (
-              <Badge variant="outline" className="capitalize">
+              <Badge variant="outline" className="capitalize border-chart-2 text-chart-2">
                 {paper.methodology.replace("-", " ")}
               </Badge>
             )}
             {paper.openAccess && (
-              <Badge variant="outline" className="border-green-600 text-green-600">
+              <Badge variant="outline" className="gradient-emerald text-white border-0">
                 Open Access
               </Badge>
             )}
-            <Badge variant="outline" className="capitalize">
+            <Badge variant="outline" className="capitalize border-chart-4 text-chart-4">
               {paper.source}
             </Badge>
           </div>
 
-          {/* Actions */}
           <div className="flex items-center gap-2 pt-2">
             {paper.pdfUrl && (
-              <Button variant="outline" size="sm" asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                asChild
+                className="border-2 hover:border-chart-1 hover:text-chart-1 transition-all duration-300 bg-transparent"
+              >
                 <a href={paper.pdfUrl} target="_blank" rel="noopener noreferrer">
                   <FileText className="w-4 h-4 mr-2" />
                   PDF
@@ -117,7 +127,12 @@ export function PaperCard({ paper, onSave }: PaperCardProps) {
               </Button>
             )}
             {paper.doi && (
-              <Button variant="outline" size="sm" asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                asChild
+                className="border-2 hover:border-chart-2 hover:text-chart-2 transition-all duration-300 bg-transparent"
+              >
                 <a href={`https://doi.org/${paper.doi}`} target="_blank" rel="noopener noreferrer">
                   <ExternalLink className="w-4 h-4 mr-2" />
                   DOI

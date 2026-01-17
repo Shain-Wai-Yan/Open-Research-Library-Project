@@ -3,79 +3,131 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* Updated to minimalist luxurious theme for research platform */
+/* Enhanced vibrant green palette with more color variants and animations */
 :root {
-  --background: oklch(0.985 0.002 85);
-  --foreground: oklch(0.205 0.005 75);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.205 0.005 75);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.205 0.005 75);
-  --primary: oklch(0.35 0.04 50);
+  /* Core colors - Fresh green theme */
+  --background: oklch(0.99 0.005 150);
+  --foreground: oklch(0.25 0.015 170);
+
+  /* Cards with subtle green tint */
+  --card: oklch(0.995 0.008 145);
+  --card-foreground: oklch(0.25 0.015 170);
+
+  /* Popover */
+  --popover: oklch(0.995 0.008 145);
+  --popover-foreground: oklch(0.25 0.015 170);
+
+  /* Primary - Vibrant emerald green */
+  --primary: oklch(0.58 0.18 155);
   --primary-foreground: oklch(0.99 0 0);
-  --secondary: oklch(0.96 0.002 85);
-  --secondary-foreground: oklch(0.205 0.005 75);
-  --muted: oklch(0.96 0.002 85);
-  --muted-foreground: oklch(0.52 0.015 75);
-  --accent: oklch(0.42 0.06 45);
+
+  /* Secondary - Soft mint */
+  --secondary: oklch(0.92 0.04 160);
+  --secondary-foreground: oklch(0.3 0.015 170);
+
+  /* Muted - Light sage */
+  --muted: oklch(0.95 0.02 155);
+  --muted-foreground: oklch(0.5 0.02 165);
+
+  /* Accent - Bright teal */
+  --accent: oklch(0.65 0.15 180);
   --accent-foreground: oklch(0.99 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
+
+  /* Destructive - Coral red */
+  --destructive: oklch(0.65 0.22 25);
   --destructive-foreground: oklch(0.99 0 0);
-  --border: oklch(0.91 0.002 85);
-  --input: oklch(0.91 0.002 85);
-  --ring: oklch(0.42 0.06 45);
-  --chart-1: oklch(0.55 0.15 220);
-  --chart-2: oklch(0.52 0.14 160);
-  --chart-3: oklch(0.48 0.12 45);
-  --chart-4: oklch(0.5 0.13 280);
-  --chart-5: oklch(0.54 0.14 340);
-  --radius: 0.5rem;
-  --sidebar: oklch(0.245 0.008 75);
-  --sidebar-foreground: oklch(0.92 0.005 85);
-  --sidebar-primary: oklch(0.42 0.06 45);
+
+  /* Borders and inputs - Subtle green */
+  --border: oklch(0.88 0.03 155);
+  --input: oklch(0.88 0.03 155);
+  --ring: oklch(0.65 0.15 160);
+
+  /* Added vibrant color variants for visual interest */
+  --success: oklch(0.6 0.16 145);
+  --warning: oklch(0.75 0.15 85);
+  --info: oklch(0.65 0.15 230);
+  --purple: oklch(0.6 0.18 300);
+  --pink: oklch(0.7 0.18 350);
+  --orange: oklch(0.68 0.18 50);
+
+  /* Charts - Vibrant multi-color palette */
+  --chart-1: oklch(0.58 0.18 155);
+  --chart-2: oklch(0.65 0.15 180);
+  --chart-3: oklch(0.62 0.16 200);
+  --chart-4: oklch(0.55 0.14 135);
+  --chart-5: oklch(0.6 0.12 170);
+
+  /* Increased radius for circular theme */
+  --radius: 1rem;
+
+  /* Sidebar - Deep forest green */
+  --sidebar: oklch(0.32 0.06 160);
+  --sidebar-foreground: oklch(0.95 0.01 150);
+  --sidebar-primary: oklch(0.7 0.18 155);
   --sidebar-primary-foreground: oklch(0.99 0 0);
-  --sidebar-accent: oklch(0.32 0.01 75);
-  --sidebar-accent-foreground: oklch(0.92 0.005 85);
-  --sidebar-border: oklch(0.32 0.01 75);
-  --sidebar-ring: oklch(0.42 0.06 45);
+  --sidebar-accent: oklch(0.4 0.08 160);
+  --sidebar-accent-foreground: oklch(0.95 0.01 150);
+  --sidebar-border: oklch(0.38 0.07 160);
+  --sidebar-ring: oklch(0.7 0.18 155);
 }
 
 .dark {
-  --background: oklch(0.16 0.005 75);
-  --foreground: oklch(0.96 0.002 85);
-  --card: oklch(0.2 0.006 75);
-  --card-foreground: oklch(0.96 0.002 85);
-  --popover: oklch(0.2 0.006 75);
-  --popover-foreground: oklch(0.96 0.002 85);
-  --primary: oklch(0.48 0.08 50);
-  --primary-foreground: oklch(0.99 0 0);
-  --secondary: oklch(0.26 0.008 75);
-  --secondary-foreground: oklch(0.96 0.002 85);
-  --muted: oklch(0.26 0.008 75);
-  --muted-foreground: oklch(0.65 0.015 85);
-  --accent: oklch(0.52 0.1 45);
-  --accent-foreground: oklch(0.99 0 0);
-  --destructive: oklch(0.5 0.2 27);
+  /* Dark mode - Rich dark greens */
+  --background: oklch(0.18 0.025 165);
+  --foreground: oklch(0.94 0.01 150);
+
+  --card: oklch(0.22 0.03 165);
+  --card-foreground: oklch(0.94 0.01 150);
+
+  --popover: oklch(0.22 0.03 165);
+  --popover-foreground: oklch(0.94 0.01 150);
+
+  /* Brighter primary in dark mode */
+  --primary: oklch(0.65 0.2 155);
+  --primary-foreground: oklch(0.15 0.02 165);
+
+  --secondary: oklch(0.28 0.04 160);
+  --secondary-foreground: oklch(0.94 0.01 150);
+
+  --muted: oklch(0.28 0.04 160);
+  --muted-foreground: oklch(0.65 0.03 155);
+
+  /* Bright teal accent */
+  --accent: oklch(0.7 0.18 180);
+  --accent-foreground: oklch(0.15 0.02 165);
+
+  --destructive: oklch(0.6 0.2 25);
   --destructive-foreground: oklch(0.99 0 0);
-  --border: oklch(0.28 0.008 75);
-  --input: oklch(0.28 0.008 75);
-  --ring: oklch(0.52 0.1 45);
-  --chart-1: oklch(0.6 0.18 220);
-  --chart-2: oklch(0.58 0.16 160);
-  --chart-3: oklch(0.55 0.15 45);
-  --chart-4: oklch(0.57 0.17 280);
-  --chart-5: oklch(0.59 0.16 340);
-  --sidebar: oklch(0.18 0.006 75);
-  --sidebar-foreground: oklch(0.92 0.005 85);
-  --sidebar-primary: oklch(0.52 0.1 45);
-  --sidebar-primary-foreground: oklch(0.99 0 0);
-  --sidebar-accent: oklch(0.26 0.008 75);
-  --sidebar-accent-foreground: oklch(0.92 0.005 85);
-  --sidebar-border: oklch(0.28 0.008 75);
-  --sidebar-ring: oklch(0.52 0.1 45);
+
+  --border: oklch(0.32 0.05 165);
+  --input: oklch(0.32 0.05 165);
+  --ring: oklch(0.7 0.18 160);
+
+  /* Dark mode color variants */
+  --success: oklch(0.65 0.18 145);
+  --warning: oklch(0.78 0.17 85);
+  --info: oklch(0.7 0.17 230);
+  --purple: oklch(0.65 0.2 300);
+  --pink: oklch(0.75 0.2 350);
+  --orange: oklch(0.72 0.2 50);
+
+  /* Brighter charts in dark mode */
+  --chart-1: oklch(0.65 0.2 155);
+  --chart-2: oklch(0.7 0.18 180);
+  --chart-3: oklch(0.68 0.18 200);
+  --chart-4: oklch(0.62 0.16 135);
+  --chart-5: oklch(0.66 0.14 170);
+
+  --sidebar: oklch(0.2 0.03 165);
+  --sidebar-foreground: oklch(0.94 0.01 150);
+  --sidebar-primary: oklch(0.7 0.2 155);
+  --sidebar-primary-foreground: oklch(0.15 0.02 165);
+  --sidebar-accent: oklch(0.28 0.04 160);
+  --sidebar-accent-foreground: oklch(0.94 0.01 150);
+  --sidebar-border: oklch(0.32 0.05 165);
+  --sidebar-ring: oklch(0.7 0.2 155);
 }
 
-/* Added serif font for academic aesthetic */
 @theme inline {
   --font-sans: "Geist", "Geist Fallback";
   --font-mono: "Geist Mono", "Geist Mono Fallback";
@@ -127,7 +179,7 @@
   }
 }
 
-/* Added shimmer animation for loading states */
+/* Added smooth animations for delightful interactions */
 @keyframes shimmer {
   0% {
     background-position: -1000px 0;
@@ -137,8 +189,152 @@
   }
 }
 
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes pulse-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 oklch(0.58 0.18 155 / 0.4);
+  }
+  50% {
+    box-shadow: 0 0 20px 5px oklch(0.58 0.18 155 / 0.2);
+  }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes gradient-shift {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
 .animate-shimmer {
   animation: shimmer 2s infinite;
-  background: linear-gradient(to right, oklch(0.96 0.002 85) 4%, oklch(0.98 0.001 85) 25%, oklch(0.96 0.002 85) 36%);
+  background: linear-gradient(to right, oklch(0.95 0.02 155) 4%, oklch(0.97 0.015 150) 25%, oklch(0.95 0.02 155) 36%);
   background-size: 1000px 100%;
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.animate-slide-up {
+  animation: slide-up 0.4s ease-out;
+}
+
+.animate-scale-in {
+  animation: scale-in 0.3s ease-out;
+}
+
+.animate-gradient {
+  background-size: 200% 200%;
+  animation: gradient-shift 4s ease infinite;
+}
+
+/* Added gradient backgrounds with multiple color variants */
+.gradient-green {
+  background: linear-gradient(135deg, oklch(0.6 0.18 155) 0%, oklch(0.65 0.15 175) 100%);
+}
+
+.gradient-teal {
+  background: linear-gradient(135deg, oklch(0.65 0.15 180) 0%, oklch(0.62 0.16 200) 100%);
+}
+
+.gradient-emerald {
+  background: linear-gradient(135deg, oklch(0.58 0.18 155) 0%, oklch(0.6 0.16 145) 100%);
+}
+
+.gradient-mint {
+  background: linear-gradient(135deg, oklch(0.7 0.15 160) 0%, oklch(0.75 0.12 170) 100%);
+}
+
+.gradient-rainbow {
+  background: linear-gradient(
+    135deg,
+    oklch(0.58 0.18 155) 0%,
+    oklch(0.65 0.15 180) 25%,
+    oklch(0.6 0.18 300) 50%,
+    oklch(0.7 0.18 350) 75%,
+    oklch(0.68 0.18 50) 100%
+  );
+}
+
+/* Utility classes for color variants */
+.text-success {
+  color: var(--success);
+}
+
+.bg-success {
+  background-color: var(--success);
+}
+
+.text-warning {
+  color: var(--warning);
+}
+
+.bg-warning {
+  background-color: var(--warning);
+}
+
+.text-info {
+  color: var(--info);
+}
+
+.bg-info {
+  background-color: var(--info);
+}
+
+/* Enhanced hover effects */
+.hover-lift {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 30px -10px oklch(0.58 0.18 155 / 0.3);
+}
+
+.hover-glow {
+  transition: box-shadow 0.3s ease;
+}
+
+.hover-glow:hover {
+  box-shadow: 0 0 20px oklch(0.58 0.18 155 / 0.5);
 }
