@@ -8,6 +8,16 @@ import {
   getInsights,
   saveInsight,
   deleteInsight,
+  getSavedPapers,
+  savePaperToCollection,
+  removePaperFromCollection,
+  deleteSavedPaper,
+  getLiteratureReviews,
+  getLiteratureReviewById,
+  saveLiteratureReview,
+  deleteLiteratureReview,
+  type SavedPaper,
+  type StoredLiteratureReview,
 } from "./storage-adapter"
 
 // ============================================================================
@@ -147,7 +157,17 @@ export async function generateLiteratureReview(
 // STORAGE API - Automatically uses Supabase or localStorage
 // ============================================================================
 
-export { getCollections, saveCollection, deleteCollection, getInsights, saveInsight, deleteInsight }
+// Collections
+export { getCollections, saveCollection, deleteCollection }
+
+// Insights
+export { getInsights, saveInsight, deleteInsight }
+
+export { getSavedPapers, savePaperToCollection, removePaperFromCollection, deleteSavedPaper }
+export type { SavedPaper }
+
+export { getLiteratureReviews, getLiteratureReviewById, saveLiteratureReview, deleteLiteratureReview }
+export type { StoredLiteratureReview }
 
 export const localStorageAPI = {
   getCollections,
@@ -156,6 +176,14 @@ export const localStorageAPI = {
   getInsights,
   saveInsight,
   deleteInsight,
+  getSavedPapers,
+  savePaperToCollection,
+  removePaperFromCollection,
+  deleteSavedPaper,
+  getLiteratureReviews,
+  getLiteratureReviewById,
+  saveLiteratureReview,
+  deleteLiteratureReview,
   getNotes(): Note[] {
     return []
   },
