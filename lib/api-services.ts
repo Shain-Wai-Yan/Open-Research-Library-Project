@@ -161,14 +161,26 @@ async function searchSemanticScholar(
 
 async function getSemanticScholarCitations(paperId: string) {
   try {
+    const lookupId = paperId
+    if (paperId.includes("openalex.org")) {
+      // OpenAlex IDs won't work with Semantic Scholar, skip
+      console.log("[Semantic Scholar] Skipping OpenAlex ID, need DOI")
+      return { citations: [], references: [] }
+    }
+
     const [citationsRes, referencesRes] = await Promise.all([
       fetch(
-        `${API_CONFIG.semanticScholar.baseUrl}/paper/${paperId}/citations?fields=paperId,title,year,authors,citationCount&limit=20`,
+        `${API_CONFIG.semanticScholar.baseUrl}/paper/${lookupId}/citations?fields=paperId,title,year,authors,citationCount&limit=20`,
       ),
       fetch(
-        `${API_CONFIG.semanticScholar.baseUrl}/paper/${paperId}/references?fields=paperId,title,year,authors,citationCount&limit=20`,
+        `${API_CONFIG.semanticScholar.baseUrl}/paper/${lookupId}/references?fields=paperId,title,year,authors,citationCount&limit=20`,
       ),
     ])
+
+    if (!citationsRes.ok || !referencesRes.ok) {
+      console.log("[Semantic Scholar] API returned error:", citationsRes.status, referencesRes.status)
+      return { citations: [], references: [] }
+    }
 
     const citationsData = await citationsRes.json()
     const referencesData = await referencesRes.json()
@@ -575,12 +587,23 @@ export async function searchAllSources(
 // ============================================================================
 
 export async function getEnhancedCitationNetwork(paperId: string, doi?: string) {
-  console.log("[v0] Fetching citation network...")
+  console.log("[v0] Fetching citation network for:", { paperId, doi })
 
-  const [semanticData, openCitationsData] = await Promise.all([
-    getSemanticScholarCitations(paperId),
-    doi ? getOpenCitations(doi) : Promise.resolve(null),
-  ])
+  // If we have DOI, use that for both APIs
+  const lookupId = doi || paperId
+
+  // Use DOI for Semantic Scholar if available, otherwise try paperId
+  const semanticPromise = doi ? getSemanticScholarCitations(`DOI:${doi}`) : getSemanticScholarCitations(paperId)
+
+  const openCitationsPromise = doi ? getOpenCitations(doi) : Promise.resolve(null)
+
+  const [semanticData, openCitationsData] = await Promise.all([semanticPromise, openCitationsPromise])
+
+  console.log("[v0] Citation results:", {
+    semanticCitations: semanticData.citations.length,
+    semanticReferences: semanticData.references.length,
+    openCitationsCitations: openCitationsData?.citationCount || 0,
+  })
 
   return {
     citations: semanticData.citations,
