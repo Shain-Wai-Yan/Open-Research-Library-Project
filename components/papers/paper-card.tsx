@@ -44,18 +44,23 @@ export function PaperCard({ paper, onSave }: PaperCardProps) {
         collectionId: selectedCollection,
         paperId: paper.id,
         title: paper.title,
-        authors: paper.authors.map((a) => a.name),
-        year: new Date(paper.publicationDate).getFullYear(),
-        abstract: paper.abstract,
-        citations: paper.citationCount,
-        doi: paper.doi,
-        pdfUrl: paper.pdfUrl,
-        source: paper.source,
+        authors: paper.authors?.map((a) => a.name) || [],
+        year: paper.publicationDate ? new Date(paper.publicationDate).getFullYear() : null,
+        abstract: paper.abstract || "",
+        citations: paper.citationCount || 0,
+        doi: paper.doi || null,
+        pdfUrl: paper.pdfUrl || null,
+        source: paper.source || "unknown",
         notes: null,
       })
       onSave?.(paper.id)
       setIsDialogOpen(false)
       setSelectedCollection("")
+      const successToast = document.createElement("div")
+      successToast.className = "fixed top-4 right-4 bg-green-600 text-white px-4 py-2 rounded shadow-lg z-50"
+      successToast.textContent = "Paper saved successfully!"
+      document.body.appendChild(successToast)
+      setTimeout(() => successToast.remove(), 3000)
     } catch (error) {
       console.error("[PaperCard] Failed to save:", error)
       alert("Failed to save paper. Please try again.")
