@@ -418,26 +418,39 @@ export default function TestSupabasePage() {
 
           {/* SQL Migration */}
           <Card className="p-6">
-            <h2 className="text-xl font-semibold mb-4">Required Tables SQL</h2>
+            <h2 className="text-xl font-semibold mb-4">Database Setup Required</h2>
             <p className="text-sm text-muted-foreground mb-4">
-              Run this in your Supabase SQL Editor if tables don't exist:
+              Copy and run this SQL in your Supabase SQL Editor to create the required tables:
             </p>
+            <div className="mb-4">
+              <Button
+                onClick={() => {
+                  const sql = document.querySelector("pre")?.textContent || ""
+                  navigator.clipboard.writeText(sql)
+                }}
+                variant="outline"
+                size="sm"
+              >
+                Copy SQL to Clipboard
+              </Button>
+            </div>
             <pre className="p-4 bg-muted rounded text-xs overflow-auto max-h-96">
-              {`-- Collections table
+              {`-- Step 1: Create all 4 tables
+-- IMPORTANT: user_id is TEXT not UUID (for flexibility with different auth providers)
+
 CREATE TABLE IF NOT EXISTS collections (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id UUID NOT NULL,
+  user_id TEXT NOT NULL,
   name TEXT NOT NULL,
   description TEXT,
-  color TEXT DEFAULT 'blue',
+  color TEXT DEFAULT '#3b82f6',
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Saved papers table
 CREATE TABLE IF NOT EXISTS saved_papers (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id UUID NOT NULL,
+  user_id TEXT NOT NULL,
   collection_id UUID REFERENCES collections(id) ON DELETE CASCADE,
   paper_id TEXT NOT NULL,
   title TEXT NOT NULL,
@@ -452,20 +465,18 @@ CREATE TABLE IF NOT EXISTS saved_papers (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Insights table
 CREATE TABLE IF NOT EXISTS insights (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id UUID NOT NULL,
+  user_id TEXT NOT NULL,
   paper_id TEXT NOT NULL,
   type TEXT NOT NULL CHECK (type IN ('concept', 'method', 'claim', 'limitation', 'gap')),
   content TEXT NOT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Literature reviews table
 CREATE TABLE IF NOT EXISTS literature_reviews (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id UUID NOT NULL,
+  user_id TEXT NOT NULL,
   title TEXT NOT NULL,
   research_question TEXT NOT NULL,
   content JSONB DEFAULT '{}',
@@ -474,12 +485,32 @@ CREATE TABLE IF NOT EXISTS literature_reviews (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Optional: Disable RLS for testing (re-enable for production!)
+-- Step 2: Create indexes for performance
+CREATE INDEX IF NOT EXISTS idx_collections_user_id ON collections(user_id);
+CREATE INDEX IF NOT EXISTS idx_saved_papers_user_id ON saved_papers(user_id);
+CREATE INDEX IF NOT EXISTS idx_saved_papers_collection_id ON saved_papers(collection_id);
+CREATE INDEX IF NOT EXISTS idx_insights_user_id ON insights(user_id);
+CREATE INDEX IF NOT EXISTS idx_insights_paper_id ON insights(paper_id);
+CREATE INDEX IF NOT EXISTS idx_literature_reviews_user_id ON literature_reviews(user_id);
+
+-- Step 3: Disable RLS for testing (enable and add policies for production!)
 ALTER TABLE collections DISABLE ROW LEVEL SECURITY;
 ALTER TABLE saved_papers DISABLE ROW LEVEL SECURITY;
 ALTER TABLE insights DISABLE ROW LEVEL SECURITY;
 ALTER TABLE literature_reviews DISABLE ROW LEVEL SECURITY;`}
             </pre>
+
+            <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-950 rounded-lg">
+              <h3 className="font-semibold text-blue-800 dark:text-blue-200 mb-2">How to run this SQL:</h3>
+              <ol className="list-decimal list-inside space-y-2 text-sm text-blue-700 dark:text-blue-300">
+                <li>Go to your Supabase Dashboard</li>
+                <li>Click on "SQL Editor" in the left sidebar</li>
+                <li>Click "New Query"</li>
+                <li>Copy the SQL above and paste it</li>
+                <li>Click "Run" or press Cmd/Ctrl + Enter</li>
+                <li>Come back here and click "Run All Tests" to verify</li>
+              </ol>
+            </div>
           </Card>
         </div>
       </div>
