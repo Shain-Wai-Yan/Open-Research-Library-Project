@@ -12,7 +12,7 @@ export interface Paper {
   fieldsOfStudy: string[]
   pdfUrl?: string
   doi?: string
-  source: "openalex" | "semantic-scholar" | "arxiv"
+  source: "openalex" | "semantic-scholar" | "arxiv" | "crossref" | "core" | "pubmed"
   methodology?: MethodologyType
   openAccess: boolean
 }
@@ -67,6 +67,9 @@ export interface SearchFilters {
   minCitations?: number
   openAccessOnly?: boolean
   sources?: Paper["source"][]
+  sortBy?: "relevance" | "recent" | "citations" | "citation-velocity"
+  author?: string
+  venue?: string
 }
 
 export type MethodologyType =

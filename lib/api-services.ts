@@ -2,6 +2,9 @@
 // All APIs are configured and ready to use - no backend needed!
 
 import type { Paper, SearchFilters } from "./types"
+import { parseQuery } from "./query-parser"
+import { sortPapers, type SortOption } from "./relevance-scoring"
+import { deduplicatePapers } from "./deduplication"
 
 // ============================================================================
 // API CONFIGURATION - Using provided credentials
@@ -434,7 +437,10 @@ export async function searchAllSources(
   page = 1,
   pageSize = 50,
 ): Promise<SearchResult> {
-  console.log("[v0] Starting paginated search, page:", page)
+  console.log("[v0] Starting advanced search, page:", page, "query:", query)
+
+  const parsedQuery = parseQuery(query)
+  console.log("[v0] Parsed query:", parsedQuery.isAdvanced ? "Advanced" : "Simple", parsedQuery)
 
   // Search all sources in parallel
   const results = await Promise.all([
@@ -453,45 +459,43 @@ export async function searchAllSources(
     results.map((r) => `${r.papers.length}/${r.total}`),
   )
 
-  // Flatten and deduplicate by DOI and title
+  // Flatten all papers
   const allPapers = results.flatMap((r) => r.papers)
-  const uniquePapers = new Map<string, Paper>()
 
-  for (const paper of allPapers) {
-    const key = paper.doi || paper.title.toLowerCase().trim()
+  console.log("[v0] Deduplicating", allPapers.length, "papers...")
+  let uniquePapers = deduplicatePapers(allPapers)
+  console.log("[v0] After deduplication:", uniquePapers.length, "unique papers")
 
-    if (!uniquePapers.has(key)) {
-      uniquePapers.set(key, paper)
-    } else {
-      // Merge data from multiple sources (take best values)
-      const existing = uniquePapers.get(key)!
-      uniquePapers.set(key, {
-        ...existing,
-        citationCount: Math.max(existing.citationCount, paper.citationCount),
-        pdfUrl: existing.pdfUrl || paper.pdfUrl,
-        abstract: existing.abstract.length > paper.abstract.length ? existing.abstract : paper.abstract,
-      })
-    }
-  }
-
-  let finalResults = Array.from(uniquePapers.values())
-
-  // Apply client-side filters
   if (filters?.openAccessOnly) {
-    finalResults = finalResults.filter((p) => p.openAccess)
+    uniquePapers = uniquePapers.filter((p) => p.openAccess)
   }
 
   if (filters?.minCitations) {
-    finalResults = finalResults.filter((p) => p.citationCount >= filters.minCitations!)
+    uniquePapers = uniquePapers.filter((p) => p.citationCount >= filters.minCitations!)
   }
 
-  // Sort by citation count (most cited first)
-  finalResults.sort((a, b) => b.citationCount - a.citationCount)
+  if (filters?.author) {
+    const authorLower = filters.author.toLowerCase()
+    uniquePapers = uniquePapers.filter((p) => p.authors.some((a) => a.name.toLowerCase().includes(authorLower)))
+  }
 
-  console.log("[v0] Final deduplicated results:", finalResults.length, "of", totalResults, "total")
+  if (filters?.venue) {
+    const venueLower = filters.venue.toLowerCase()
+    uniquePapers = uniquePapers.filter((p) => p.venue.toLowerCase().includes(venueLower))
+  }
+
+  if (filters?.methodology && filters.methodology.length > 0) {
+    uniquePapers = uniquePapers.filter((p) => p.methodology && filters.methodology!.includes(p.methodology))
+  }
+
+  const sortBy: SortOption = filters?.sortBy || "relevance"
+  console.log("[v0] Sorting by:", sortBy)
+  const sortedPapers = sortPapers(uniquePapers, sortBy, parsedQuery)
+
+  console.log("[v0] Final results:", sortedPapers.length, "papers")
 
   return {
-    papers: finalResults,
+    papers: sortedPapers,
     totalResults,
     currentPage: page,
     hasMore: page * pageSize < totalResults,

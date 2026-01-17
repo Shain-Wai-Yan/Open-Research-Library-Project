@@ -3,10 +3,12 @@
 import type React from "react"
 
 import { useState } from "react"
-import { Search, SlidersHorizontal } from "lucide-react"
+import { Search, SlidersHorizontal, Sparkles } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { SearchFilters } from "./search-filters"
+import { parseQuery } from "@/lib/query-parser"
+import { Badge } from "@/components/ui/badge"
 
 interface SearchBarProps {
   onSearch: (query: string) => void
@@ -16,6 +18,9 @@ interface SearchBarProps {
 export function SearchBar({ onSearch, onFilterChange }: SearchBarProps) {
   const [query, setQuery] = useState("")
   const [showFilters, setShowFilters] = useState(false)
+
+  const parsedQuery = parseQuery(query)
+  const isAdvanced = parsedQuery.isAdvanced
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -27,11 +32,17 @@ export function SearchBar({ onSearch, onFilterChange }: SearchBarProps) {
       <form onSubmit={handleSubmit} className="flex gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+          {isAdvanced && (
+            <Badge variant="secondary" className="absolute right-4 top-1/2 -translate-y-1/2 gap-1 bg-transparent">
+              <Sparkles className="w-3 h-3" />
+              Advanced
+            </Badge>
+          )}
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search across OpenAlex, Semantic Scholar, arXiv..."
-            className="pl-12 h-12 text-base"
+            placeholder='Try: "machine learning" AND privacy, or title:neural author:Hinton'
+            className="pl-12 pr-28 h-12 text-base"
           />
         </div>
         <Button
