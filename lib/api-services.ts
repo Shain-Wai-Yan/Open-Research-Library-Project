@@ -27,7 +27,7 @@ const API_CONFIG = {
     baseUrl: "https://opencitations.net/index/coci/api/v1",
   },
   arxiv: {
-    baseUrl: "http://export.arxiv.org/api",
+    baseUrl: "https://export.arxiv.org/api",
   },
   unpaywall: {
     baseUrl: "https://api.unpaywall.org/v2",
