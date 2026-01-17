@@ -27,8 +27,6 @@ import {
 /**
  * Search papers across 8 sources: OpenAlex, Semantic Scholar, arXiv,
  * Crossref, OpenCitations, Unpaywall, CORE, and PubMed
- *
- * Now routes through server-side API for caching and performance
  */
 export async function searchPapers(
   query: string,
@@ -37,29 +35,7 @@ export async function searchPapers(
   pageSize = 50,
 ): Promise<SearchResult> {
   try {
-    const params = new URLSearchParams({
-      q: query,
-      page: page.toString(),
-      pageSize: pageSize.toString(),
-    })
-
-    // Add filters to query params
-    if (filters?.yearFrom) params.set("yearFrom", filters.yearFrom.toString())
-    if (filters?.yearTo) params.set("yearTo", filters.yearTo.toString())
-    if (filters?.minCitations) params.set("minCitations", filters.minCitations.toString())
-    if (filters?.openAccessOnly) params.set("openAccessOnly", "true")
-    if (filters?.methodology) params.set("methodology", filters.methodology)
-    if (filters?.author) params.set("author", filters.author)
-    if (filters?.venue) params.set("venue", filters.venue)
-    if (filters?.sortBy) params.set("sortBy", filters.sortBy)
-
-    const response = await fetch(`/api/search?${params.toString()}`)
-
-    if (!response.ok) {
-      throw new Error(`API error: ${response.statusText}`)
-    }
-
-    return await response.json()
+    return await searchAllSources(query, filters, page, pageSize)
   } catch (error) {
     console.error("[API Client] Search error:", error)
     return {
