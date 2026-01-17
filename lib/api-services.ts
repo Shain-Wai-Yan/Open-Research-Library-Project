@@ -29,13 +29,13 @@ const API_CONFIG = {
     baseUrl: USE_PROXY ? `${PROXY_URL}/proxy/opencitations` : "https://opencitations.net/index/coci/api/v1",
   },
   arxiv: {
-    baseUrl: USE_PROXY ? `${PROXY_URL}/proxy/arxiv` : "https://export.arxiv.org/api",
+    baseUrl: USE_PROXY ? `${PROXY_URL}/proxy/arxiv/api` : "https://export.arxiv.org/api",
   },
   unpaywall: {
     baseUrl: USE_PROXY ? `${PROXY_URL}/proxy/unpaywall` : "https://api.unpaywall.org/v2",
   },
   core: {
-    baseUrl: USE_PROXY ? `${PROXY_URL}/proxy/core` : "https://api.core.ac.uk/v3",
+    baseUrl: USE_PROXY ? `${PROXY_URL}/proxy/core/v3` : "https://api.core.ac.uk/v3",
     apiKey: "1ijPByuoNLfv2SqOlD98K0wtA3Vzn7Mc",
   },
   pubmed: {

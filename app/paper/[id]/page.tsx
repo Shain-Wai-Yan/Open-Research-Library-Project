@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { InsightEditor } from "@/components/insights/insight-editor"
 import { ExternalLink, FileText, BookmarkPlus, Network } from "lucide-react"
-import { getPaperById, getCitationNetwork } from "@/lib/mock-api"
+import { getPaperById, getCitationNetwork } from "@/lib/api-client"
 import type { Paper } from "@/lib/types"
 
 export default function PaperDetailPage() {
@@ -21,7 +21,8 @@ export default function PaperDetailPage() {
 
   useEffect(() => {
     const loadPaper = async () => {
-      const data = await getPaperById(params.id as string)
+      const paperId = decodeURIComponent(params.id as string)
+      const data = await getPaperById(paperId)
       setPaper(data)
 
       if (data) {

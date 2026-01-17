@@ -66,7 +66,7 @@ export function PaperCard({ paper, onSave }: PaperCardProps) {
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1">
               <Link
-                href={`/paper/${paper.id}`}
+                href={`/paper/${encodeURIComponent(paper.id)}`}
                 className="text-lg font-serif font-semibold text-foreground hover:text-primary transition-colors duration-300 group-hover:text-primary"
               >
                 {paper.title}
