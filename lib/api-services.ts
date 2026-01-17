@@ -10,35 +10,36 @@ import { getSearchEngine } from "./search-engine"
 // API CONFIGURATION - Using provided credentials
 // ============================================================================
 
+const PROXY_URL = process.env.NEXT_PUBLIC_CLOUDFLARE_PROXY_URL || ""
+const USE_PROXY = !!PROXY_URL
+
 const API_CONFIG = {
   openalex: {
-    baseUrl: "https://api.openalex.org",
-    email: "shainwaiyanx@gmail.com", // Polite pool for faster responses
+    baseUrl: USE_PROXY ? `${PROXY_URL}/proxy/openalex` : "https://api.openalex.org",
+    email: "shainwaiyanx@gmail.com",
   },
   semanticScholar: {
-    baseUrl: "https://api.semanticscholar.org/graph/v1",
-    // Will use public access - can add API key later for higher limits
+    baseUrl: USE_PROXY ? `${PROXY_URL}/proxy/semanticscholar` : "https://api.semanticscholar.org/graph/v1",
   },
   crossref: {
-    baseUrl: "https://api.crossref.org",
+    baseUrl: USE_PROXY ? `${PROXY_URL}/proxy/crossref` : "https://api.crossref.org",
     email: "shainwaiyanx@gmail.com",
   },
   openCitations: {
-    baseUrl: "https://opencitations.net/index/coci/api/v1",
+    baseUrl: USE_PROXY ? `${PROXY_URL}/proxy/opencitations` : "https://opencitations.net/index/coci/api/v1",
   },
   arxiv: {
-    baseUrl: "https://export.arxiv.org/api",
+    baseUrl: USE_PROXY ? `${PROXY_URL}/proxy/arxiv` : "https://export.arxiv.org/api",
   },
   unpaywall: {
-    baseUrl: "https://api.unpaywall.org/v2",
-    email: "shainwaiyanx@gmail.com",
+    baseUrl: USE_PROXY ? `${PROXY_URL}/proxy/unpaywall` : "https://api.unpaywall.org/v2",
   },
   core: {
-    baseUrl: "https://api.core.ac.uk/v3",
+    baseUrl: USE_PROXY ? `${PROXY_URL}/proxy/core` : "https://api.core.ac.uk/v3",
     apiKey: "1ijPByuoNLfv2SqOlD98K0wtA3Vzn7Mc",
   },
   pubmed: {
-    baseUrl: "https://eutils.ncbi.nlm.nih.gov/entrez/eutils",
+    baseUrl: USE_PROXY ? `${PROXY_URL}/proxy/pubmed` : "https://eutils.ncbi.nlm.nih.gov/entrez/eutils",
   },
 }
 
