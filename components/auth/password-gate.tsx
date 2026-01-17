@@ -37,7 +37,11 @@ export function PasswordGate({ children }: { children: React.ReactNode }) {
   }
 
   if (isChecking) {
-    return null
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50">
+        <div className="w-20 h-20 rounded-full bg-gradient-to-br from-emerald-500 to-teal-500 animate-pulse" />
+      </div>
+    )
   }
 
   if (isAuthenticated) {
