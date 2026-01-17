@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
           pdf_url: pdfUrl || null,
           source: source || null,
           notes: notes || null,
-        })
+        } as any)
         .eq("id", existing.id)
         .select()
         .single()
@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
           pdf_url: pdfUrl || null,
           source: source || null,
           notes: notes || null,
-        })
+        } as any)
         .select()
         .single()
 

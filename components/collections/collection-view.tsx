@@ -31,9 +31,11 @@ export function CollectionView({ collectionId, collectionName }: CollectionViewP
       setFilteredPapers(papers)
     } else {
       const query = searchQuery.toLowerCase()
-      const filtered = papers.filter(
-        (paper) => paper.title.toLowerCase().includes(query) || paper.authors?.toLowerCase().includes(query),
-      )
+      const filtered = papers.filter((paper) => {
+        const titleMatch = paper.title.toLowerCase().includes(query)
+        const authorsMatch = paper.authors?.some((author) => author.name.toLowerCase().includes(query)) || false
+        return titleMatch || authorsMatch
+      })
       setFilteredPapers(filtered)
     }
   }, [searchQuery, papers])
@@ -96,13 +98,15 @@ export function CollectionView({ collectionId, collectionName }: CollectionViewP
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1">
                     <Link
-                      href={`/paper/${encodeURIComponent(paper.paper_id)}`}
+                      href={`/paper/${encodeURIComponent(paper.paperId)}`}
                       className="text-lg font-serif font-semibold text-foreground hover:text-primary transition-colors"
                     >
                       {paper.title}
                     </Link>
                     <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
-                      {paper.authors && <span>{paper.authors}</span>}
+                      {paper.authors && paper.authors.length > 0 && (
+                        <span>{paper.authors.map((a) => a.name).join(", ")}</span>
+                      )}
                       {paper.year && (
                         <>
                           <span>•</span>
@@ -129,14 +133,14 @@ export function CollectionView({ collectionId, collectionName }: CollectionViewP
                 </div>
 
                 <div className="flex items-center gap-2 pt-2">
-                  {paper.pdf_url && (
+                  {paper.pdfUrl && (
                     <Button
                       variant="outline"
                       size="sm"
                       asChild
                       className="border-2 hover:border-chart-1 hover:text-chart-1 transition-all bg-transparent"
                     >
-                      <a href={paper.pdf_url} target="_blank" rel="noopener noreferrer">
+                      <a href={paper.pdfUrl} target="_blank" rel="noopener noreferrer">
                         <FileText className="w-4 h-4 mr-2" />
                         PDF
                       </a>
