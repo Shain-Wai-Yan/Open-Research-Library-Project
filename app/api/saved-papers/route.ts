@@ -40,7 +40,20 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json()
-    const { collectionId, paperId, title, authors, year, abstract, citations, doi, pdfUrl, source, notes } = body
+    const {
+      collectionId,
+      paperId,
+      title,
+      authors,
+      year,
+      abstract,
+      citations,
+      doi,
+      pdfUrl,
+      source,
+      notes,
+      fieldsOfStudy,
+    } = body
 
     const supabase = getSupabaseAdmin()
     const anonymousUserId = "00000000-0000-0000-0000-000000000000"
@@ -67,6 +80,7 @@ export async function POST(request: NextRequest) {
           pdf_url: pdfUrl || null,
           source: source || null,
           notes: notes || null,
+          fields_of_study: fieldsOfStudy || null,
         } as any)
         .eq("id", existing.id)
         .select()
@@ -95,6 +109,7 @@ export async function POST(request: NextRequest) {
           pdf_url: pdfUrl || null,
           source: source || null,
           notes: notes || null,
+          fields_of_study: fieldsOfStudy || null,
         } as any)
         .select()
         .single()

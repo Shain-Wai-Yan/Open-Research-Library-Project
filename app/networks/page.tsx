@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
+import dynamic from "next/dynamic"
 import { Sidebar } from "@/components/layout/sidebar"
 import { Header } from "@/components/layout/header"
 import { Card } from "@/components/ui/card"
@@ -12,19 +13,46 @@ import { getCollections, getSavedPapers, getCitationNetwork } from "@/lib/api-cl
 import type { SavedPaper } from "@/lib/storage-adapter"
 import { useToast } from "@/hooks/use-toast"
 
+const ForceGraph2D = dynamic(() => import("react-force-graph-2d"), { ssr: false })
+
 interface GraphNode {
   id: string
   label: string
-  type: "paper" | "author" | "citation"
+  type: "paper" | "author"
   citations?: number
-  x?: number
-  y?: number
+  field?: string // Added field for cluster highlighting
+  color?: string // Added color for cluster highlighting
 }
 
 interface GraphLink {
   source: string
   target: string
-  type: "authored" | "cited" | "cocited"
+  type: "authored" | "cited"
+}
+
+const FIELD_COLORS: Record<string, string> = {
+  "Computer Science": "#3b82f6", // Blue
+  Medicine: "#ef4444", // Red
+  Biology: "#10b981", // Green
+  Psychology: "#f59e0b", // Orange
+  Physics: "#8b5cf6", // Purple
+  Chemistry: "#06b6d4", // Cyan
+  Mathematics: "#ec4899", // Pink
+  Engineering: "#84cc16", // Lime
+  Business: "#f97316", // Orange-red
+  Economics: "#14b8a6", // Teal
+  Sociology: "#a855f7", // Purple-pink
+  "Environmental Science": "#22c55e", // Green-lime
+  Default: "#94a3b8", // Slate gray
+}
+
+function getFieldColor(fields: string[] | undefined): { field: string; color: string } {
+  if (!fields || fields.length === 0) {
+    return { field: "Uncategorized", color: FIELD_COLORS["Default"] }
+  }
+  const primaryField = fields[0]
+  const color = FIELD_COLORS[primaryField] || FIELD_COLORS["Default"]
+  return { field: primaryField, color }
 }
 
 export default function NetworksPage() {
@@ -34,7 +62,7 @@ export default function NetworksPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [networkData, setNetworkData] = useState<{ nodes: GraphNode[]; links: GraphLink[] } | null>(null)
   const [isBuilding, setIsBuilding] = useState(false)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const graphRef = useRef<any>() // Reference to ForceGraph component
   const { toast } = useToast()
 
   useEffect(() => {
@@ -82,13 +110,16 @@ export default function NetworksPage() {
       const links: GraphLink[] = []
       const authorSet = new Set<string>()
 
-      // Add paper nodes
       papers.forEach((paper) => {
+        const { field, color } = getFieldColor(paper.fieldsOfStudy)
+
         nodes.push({
           id: paper.paperId,
           label: paper.title.substring(0, 50) + "...",
           type: "paper",
           citations: paper.citations,
+          field,
+          color,
         })
 
         // Extract author nodes
@@ -103,6 +134,7 @@ export default function NetworksPage() {
                   id: authorId,
                   label: authorName,
                   type: "author",
+                  color: "#64748b", // Slate gray for authors
                 })
               }
               links.push({
@@ -115,14 +147,13 @@ export default function NetworksPage() {
         }
       })
 
-      // Fetch citation connections for first 5 papers (to avoid rate limits)
+      // Fetch citation connections for first 5 papers
       const samplePapers = papers.slice(0, 5)
       for (const paper of samplePapers) {
         if (paper.doi) {
           try {
             const citationData = await getCitationNetwork(paper.paperId, paper.doi)
 
-            // Add citation links between papers in collection
             citationData.references?.slice(0, 10).forEach((ref: any) => {
               const refInCollection = papers.find((p) => p.paperId === ref.paperId || p.doi === ref.doi)
               if (refInCollection) {
@@ -155,131 +186,6 @@ export default function NetworksPage() {
       setIsBuilding(false)
     }
   }
-
-  useEffect(() => {
-    if (!networkData || !canvasRef.current) return
-
-    const canvas = canvasRef.current
-    const ctx = canvas.getContext("2d")
-    if (!ctx) return
-
-    const width = canvas.width
-    const height = canvas.height
-
-    // Simple force-directed layout simulation
-    const nodePositions = new Map<string, { x: number; y: number; vx: number; vy: number }>()
-
-    // Initialize positions randomly
-    networkData.nodes.forEach((node) => {
-      nodePositions.set(node.id, {
-        x: Math.random() * width,
-        y: Math.random() * height,
-        vx: 0,
-        vy: 0,
-      })
-    })
-
-    let iterations = 0
-    const maxIterations = 100
-
-    const simulate = () => {
-      if (iterations >= maxIterations) return
-
-      ctx.clearRect(0, 0, width, height)
-
-      // Apply forces
-      const nodes = networkData.nodes
-      const links = networkData.links
-
-      // Repulsion between all nodes
-      for (let i = 0; i < nodes.length; i++) {
-        for (let j = i + 1; j < nodes.length; j++) {
-          const pos1 = nodePositions.get(nodes[i].id)!
-          const pos2 = nodePositions.get(nodes[j].id)!
-
-          const dx = pos2.x - pos1.x
-          const dy = pos2.y - pos1.y
-          const dist = Math.sqrt(dx * dx + dy * dy) || 1
-
-          const force = 1000 / (dist * dist)
-          pos1.vx -= (dx / dist) * force
-          pos1.vy -= (dy / dist) * force
-          pos2.vx += (dx / dist) * force
-          pos2.vy += (dy / dist) * force
-        }
-      }
-
-      // Attraction along links
-      links.forEach((link) => {
-        const pos1 = nodePositions.get(link.source)
-        const pos2 = nodePositions.get(link.target)
-        if (!pos1 || !pos2) return
-
-        const dx = pos2.x - pos1.x
-        const dy = pos2.y - pos1.y
-        const dist = Math.sqrt(dx * dx + dy * dy) || 1
-
-        const force = dist * 0.001
-        pos1.vx += (dx / dist) * force
-        pos1.vy += (dy / dist) * force
-        pos2.vx -= (dx / dist) * force
-        pos2.vy -= (dy / dist) * force
-      })
-
-      // Update positions
-      nodePositions.forEach((pos) => {
-        pos.x += pos.vx
-        pos.y += pos.vy
-        pos.vx *= 0.9
-        pos.vy *= 0.9
-
-        // Keep in bounds
-        pos.x = Math.max(30, Math.min(width - 30, pos.x))
-        pos.y = Math.max(30, Math.min(height - 30, pos.y))
-      })
-
-      // Draw links
-      ctx.strokeStyle = "#ccc"
-      ctx.lineWidth = 1
-      links.forEach((link) => {
-        const pos1 = nodePositions.get(link.source)
-        const pos2 = nodePositions.get(link.target)
-        if (!pos1 || !pos2) return
-
-        ctx.beginPath()
-        ctx.moveTo(pos1.x, pos1.y)
-        ctx.lineTo(pos2.x, pos2.y)
-        ctx.stroke()
-      })
-
-      // Draw nodes
-      nodes.forEach((node) => {
-        const pos = nodePositions.get(node.id)
-        if (!pos) return
-
-        ctx.beginPath()
-        const radius = node.type === "paper" ? 8 : 5
-        ctx.arc(pos.x, pos.y, radius, 0, 2 * Math.PI)
-        ctx.fillStyle = node.type === "paper" ? "#3b82f6" : "#10b981"
-        ctx.fill()
-        ctx.strokeStyle = "#fff"
-        ctx.lineWidth = 2
-        ctx.stroke()
-
-        // Draw label for papers
-        if (node.type === "paper") {
-          ctx.fillStyle = "#333"
-          ctx.font = "10px sans-serif"
-          ctx.fillText(node.label.substring(0, 20), pos.x + 10, pos.y + 3)
-        }
-      })
-
-      iterations++
-      requestAnimationFrame(simulate)
-    }
-
-    simulate()
-  }, [networkData])
 
   return (
     <div className="flex min-h-screen">
@@ -362,13 +268,38 @@ export default function NetworksPage() {
                           <Card className="p-6">
                             <div className="mb-4">
                               <h3 className="text-lg font-semibold mb-2">Citation Network</h3>
+
+                              <div className="mb-4">
+                                <p className="text-sm font-medium mb-2">Research Fields:</p>
+                                <div className="flex flex-wrap gap-2">
+                                  {Array.from(
+                                    new Set(
+                                      networkData.nodes
+                                        .filter((n) => n.type === "paper" && n.field)
+                                        .map((n) => n.field),
+                                    ),
+                                  ).map((field) => {
+                                    const node = networkData.nodes.find((n) => n.field === field)
+                                    return (
+                                      <Badge key={field} variant="secondary" className="flex items-center gap-2">
+                                        <div
+                                          className="w-3 h-3 rounded-full"
+                                          style={{ backgroundColor: node?.color }}
+                                        />
+                                        <span>{field}</span>
+                                      </Badge>
+                                    )
+                                  })}
+                                </div>
+                              </div>
+
                               <div className="flex gap-4 text-sm text-muted-foreground">
                                 <div className="flex items-center gap-2">
                                   <div className="w-3 h-3 rounded-full bg-blue-500" />
                                   <span>Papers ({networkData.nodes.filter((n) => n.type === "paper").length})</span>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                  <div className="w-3 h-3 rounded-full bg-green-500" />
+                                  <div className="w-3 h-3 rounded-full bg-slate-500" />
                                   <span>Authors ({networkData.nodes.filter((n) => n.type === "author").length})</span>
                                 </div>
                                 <div className="flex items-center gap-2">
@@ -377,12 +308,35 @@ export default function NetworksPage() {
                                 </div>
                               </div>
                             </div>
-                            <canvas
-                              ref={canvasRef}
-                              width={1000}
-                              height={600}
-                              className="w-full border rounded-lg bg-white"
-                            />
+
+                            <div className="border rounded-lg bg-white">
+                              <ForceGraph2D
+                                ref={graphRef}
+                                graphData={{
+                                  nodes: networkData.nodes,
+                                  links: networkData.links,
+                                }}
+                                nodeLabel={(node: any) => `${node.label}${node.field ? ` (${node.field})` : ""}`}
+                                nodeColor={(node: any) => node.color || "#94a3b8"}
+                                nodeRelSize={6}
+                                nodeVal={(node: any) => (node.type === "paper" ? 10 : 5)}
+                                linkColor={() => "#d1d5db"}
+                                linkWidth={1.5}
+                                linkDirectionalParticles={2}
+                                linkDirectionalParticleWidth={2}
+                                onNodeClick={(node: any) => {
+                                  if (node.type === "paper") {
+                                    const paper = papers.find((p) => p.paperId === node.id)
+                                    if (paper?.doi) {
+                                      window.open(`https://doi.org/${paper.doi}`, "_blank")
+                                    }
+                                  }
+                                }}
+                                width={1000}
+                                height={600}
+                                backgroundColor="#ffffff"
+                              />
+                            </div>
                           </Card>
                         )}
 
@@ -404,7 +358,21 @@ export default function NetworksPage() {
                             {papers.map((paper) => (
                               <Card key={paper.id} className="p-4">
                                 <div className="space-y-2">
-                                  <h4 className="font-medium text-sm leading-tight">{paper.title}</h4>
+                                  <div className="flex items-start justify-between gap-2">
+                                    <h4 className="font-medium text-sm leading-tight">{paper.title}</h4>
+                                    {paper.fieldsOfStudy && paper.fieldsOfStudy.length > 0 && (
+                                      <Badge
+                                        variant="outline"
+                                        className="shrink-0"
+                                        style={{
+                                          borderColor: getFieldColor(paper.fieldsOfStudy).color,
+                                          color: getFieldColor(paper.fieldsOfStudy).color,
+                                        }}
+                                      >
+                                        {paper.fieldsOfStudy[0]}
+                                      </Badge>
+                                    )}
+                                  </div>
                                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                                     {paper.authors && Array.isArray(paper.authors) && (
                                       <span>

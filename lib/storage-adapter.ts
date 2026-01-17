@@ -230,6 +230,7 @@ export async function deleteInsight(id: string): Promise<void> {
 }
 
 // ============================================================================
+// Saved Papers
 // ============================================================================
 
 export interface SavedPaper {
@@ -245,6 +246,7 @@ export interface SavedPaper {
   pdfUrl: string | null
   source: string | null
   notes: string | null
+  fieldsOfStudy?: string[] // Added for cluster highlighting
   createdAt: string
 }
 
@@ -272,6 +274,7 @@ export async function getSavedPapers(collectionId?: string): Promise<SavedPaper[
       pdfUrl: row.pdf_url,
       source: row.source,
       notes: row.notes,
+      fieldsOfStudy: row.fields_of_study || [], // Map fields_of_study from database
       createdAt: row.created_at,
     }))
   } catch (err) {
@@ -300,6 +303,7 @@ export async function savePaperToCollection(collectionId: string, paper: Paper, 
         pdfUrl: paper.pdfUrl,
         source: paper.source,
         notes: notes || null,
+        fieldsOfStudy: paper.fieldsOfStudy || [], // Include fields for cluster highlighting
       }),
     })
 
@@ -322,6 +326,7 @@ export async function savePaperToCollection(collectionId: string, paper: Paper, 
       pdfUrl: data.pdf_url,
       source: data.source,
       notes: data.notes,
+      fieldsOfStudy: data.fields_of_study || [], // Map fields from response
       createdAt: data.created_at,
     }
   } catch (err) {
@@ -340,6 +345,7 @@ export async function savePaperToCollection(collectionId: string, paper: Paper, 
       pdfUrl: paper.pdfUrl || null,
       source: paper.source,
       notes: notes || null,
+      fieldsOfStudy: paper.fieldsOfStudy || [], // Include fields in localStorage fallback
       createdAt: new Date().toISOString(),
     }
 
@@ -390,6 +396,7 @@ export async function deleteSavedPaper(id: string): Promise<void> {
 }
 
 // ============================================================================
+// Literature Reviews
 // ============================================================================
 
 export interface StoredLiteratureReview {
