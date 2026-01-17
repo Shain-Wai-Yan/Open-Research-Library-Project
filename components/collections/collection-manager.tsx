@@ -1,5 +1,7 @@
 "use client"
 
+import type React from "react"
+
 import { useState, useEffect } from "react"
 import { Plus, FolderOpen, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -19,7 +21,11 @@ import type { Collection } from "@/lib/types"
 
 const COLLECTION_COLORS = ["blue", "emerald", "rose", "purple", "amber"] as const
 
-export function CollectionManager() {
+interface CollectionManagerProps {
+  onCollectionClick?: (collectionId: string, collectionName: string) => void
+}
+
+export function CollectionManager({ onCollectionClick }: CollectionManagerProps) {
   const [collections, setCollections] = useState<Collection[]>([])
   const [isOpen, setIsOpen] = useState(false)
   const [newCollection, setNewCollection] = useState({ name: "", description: "" })
@@ -32,7 +38,6 @@ export function CollectionManager() {
   const loadCollections = async () => {
     setIsLoading(true)
     const data = await getCollections()
-    console.log("[v0] Loaded collections:", data)
     setCollections(data)
     setIsLoading(false)
   }
@@ -47,23 +52,30 @@ export function CollectionManager() {
       paperIds: [],
     }
 
-    console.log("[v0] Creating collection:", collection)
     try {
       await saveCollection(collection)
       await loadCollections()
       setNewCollection({ name: "", description: "" })
       setIsOpen(false)
     } catch (error) {
-      console.error("[v0] Error creating collection:", error)
+      console.error("[CollectionManager] Error creating collection:", error)
     }
   }
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+
     try {
       await deleteCollection(id)
       await loadCollections()
     } catch (error) {
-      console.error("[v0] Error deleting collection:", error)
+      console.error("[CollectionManager] Error deleting collection:", error)
+    }
+  }
+
+  const handleCollectionClick = (collection: Collection) => {
+    if (onCollectionClick && collection.id) {
+      onCollectionClick(collection.id, collection.name)
     }
   }
 
@@ -119,7 +131,11 @@ export function CollectionManager() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {collections.map((collection) => (
-            <Card key={collection.id} className="p-4 hover:shadow-md transition-shadow">
+            <Card
+              key={collection.id}
+              className="p-4 hover:shadow-md transition-shadow cursor-pointer"
+              onClick={() => handleCollectionClick(collection)}
+            >
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
                   <div className={`w-10 h-10 rounded-lg bg-${collection.color}-500 flex items-center justify-center`}>
@@ -127,10 +143,10 @@ export function CollectionManager() {
                   </div>
                   <div>
                     <h4 className="font-semibold">{collection.name}</h4>
-                    <p className="text-xs text-muted-foreground">{collection.paperIds?.length || 0} papers</p>
+                    <p className="text-xs text-muted-foreground">{(collection as any).paper_count || 0} papers</p>
                   </div>
                 </div>
-                <Button variant="ghost" size="icon" onClick={() => handleDelete(collection.id!)}>
+                <Button variant="ghost" size="icon" onClick={(e) => handleDelete(collection.id!, e)}>
                   <Trash2 className="w-4 h-4" />
                 </Button>
               </div>

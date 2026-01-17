@@ -23,7 +23,7 @@ function isSupabaseConfigured(): boolean {
   return !!(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY)
 }
 
-// GET /api/collections - Get all collections
+// GET /api/collections - Get all collections with paper counts
 export async function GET() {
   if (!isSupabaseConfigured()) {
     return NextResponse.json({ error: "Supabase not configured" }, { status: 500 })
@@ -31,14 +31,27 @@ export async function GET() {
 
   try {
     const supabase = getSupabaseAdmin()
-    const { data, error } = await supabase.from("collections").select("*").order("created_at", { ascending: false })
+
+    const { data, error } = await supabase
+      .from("collections")
+      .select(`
+        *,
+        saved_papers(count)
+      `)
+      .order("created_at", { ascending: false })
 
     if (error) {
       console.error("[API] Supabase error:", error.message)
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    return NextResponse.json(data || [])
+    const collectionsWithCounts = (data || []).map((collection: any) => ({
+      ...collection,
+      paper_count: collection.saved_papers?.[0]?.count || 0,
+      saved_papers: undefined, // Remove the nested object
+    }))
+
+    return NextResponse.json(collectionsWithCounts)
   } catch (err) {
     console.error("[API] Unexpected error:", err)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })

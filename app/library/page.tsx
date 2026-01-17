@@ -1,12 +1,25 @@
 "use client"
 
+import { useState } from "react"
+import { ArrowLeft } from "lucide-react"
 import { Sidebar } from "@/components/layout/sidebar"
 import { Header } from "@/components/layout/header"
 import { CollectionManager } from "@/components/collections/collection-manager"
-import { SavedPapersList } from "@/components/papers/saved-papers-list"
+import { CollectionView } from "@/components/collections/collection-view"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Button } from "@/components/ui/button"
 
 export default function LibraryPage() {
+  const [selectedCollection, setSelectedCollection] = useState<{ id: string; name: string } | null>(null)
+
+  const handleCollectionClick = (collectionId: string, collectionName: string) => {
+    setSelectedCollection({ id: collectionId, name: collectionName })
+  }
+
+  const handleBackToCollections = () => {
+    setSelectedCollection(null)
+  }
+
   return (
     <div className="flex min-h-screen">
       <Sidebar />
@@ -29,11 +42,23 @@ export default function LibraryPage() {
               </TabsList>
 
               <TabsContent value="collections" className="space-y-6">
-                <CollectionManager />
+                {selectedCollection ? (
+                  <div>
+                    <Button variant="ghost" onClick={handleBackToCollections} className="mb-4">
+                      <ArrowLeft className="w-4 h-4 mr-2" />
+                      Back to Collections
+                    </Button>
+                    <CollectionView collectionId={selectedCollection.id} collectionName={selectedCollection.name} />
+                  </div>
+                ) : (
+                  <CollectionManager onCollectionClick={handleCollectionClick} />
+                )}
               </TabsContent>
 
               <TabsContent value="saved">
-                <SavedPapersList />
+                <div className="text-center py-16 text-muted-foreground">
+                  Save papers from search results to see them here
+                </div>
               </TabsContent>
 
               <TabsContent value="notes">
