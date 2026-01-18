@@ -3,8 +3,6 @@ import type { Metadata } from "next"
 import { Geist, Geist_Mono, Crimson_Pro } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import { ClientWrapper } from "@/components/auth/client-wrapper"
-import { PuterScript } from "@/components/puter-script"
-import Script from "next/script"
 import "./globals.css"
 
 const _geist = Geist({ subsets: ["latin"] })
@@ -42,8 +40,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <script src="https://js.puter.com/v2/" async />
+      </head>
       <body className={`font-sans antialiased`}>
-        <PuterScript />
         <ClientWrapper>{children}</ClientWrapper>
         <Analytics />
       </body>
