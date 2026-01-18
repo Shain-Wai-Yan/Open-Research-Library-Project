@@ -121,30 +121,31 @@ export default function NetworksPage() {
     // Configure link force with moderate strength
     fg.d3Force("link")?.distance(linkDistance).strength(0.5)
 
-    // Add collision force with reduced strength to prevent nodes fleeing mouse
+    // Add collision force with CONSTANT strength (never hover-dependent)
     const d3 = require("d3-force-3d")
     fg.d3Force(
       "collide",
       d3
         .forceCollide()
         .radius((node: any) => calculateNodeSize(node.citations, node.type) + 8)
-        .strength(highlightNodes.size > 0 ? 0.1 : 0.3)
+        .strength(0.15)
     )
 
     // Only reheat when controls actually change
     fg.d3ReheatSimulation()
   }, [chargeStrength, linkDistance])
 
-  // Cool down simulation after network is built to make graph feel solid
+  // Freeze physics completely after layout (hard stop)
   useEffect(() => {
     if (!graphRef.current || !networkData) return
 
     const fg = graphRef.current
     const timeout = setTimeout(() => {
-      // Gradually reduce forces after layout stabilizes
+      // Hard-lock the graph by zeroing all forces
       fg.d3Force("charge")?.strength(0)
-      fg.d3Force("link")?.strength(0.1)
-    }, 3000)
+      fg.d3Force("link")?.strength(0)
+      fg.d3Force("collide")?.strength(0)
+    }, 2500)
 
     return () => clearTimeout(timeout)
   }, [networkData])
@@ -993,10 +994,10 @@ export default function NetworksPage() {
                                 // Force engine configuration
                                 dagMode={dagMode || undefined}
                                 dagLevelDistance={80}
-                                d3AlphaDecay={0.02}
+                                d3AlphaDecay={0.15}
                                 d3VelocityDecay={0.3}
-                                warmupTicks={120}
-                                cooldownTicks={1000}
+                                warmupTicks={60}
+                                cooldownTicks={200}
                                 width={1100}
                                 height={700}
                                 backgroundColor="#f8fafc"
