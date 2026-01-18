@@ -26,16 +26,6 @@ import {
 } from "@/lib/api-client"
 import Loading from "./loading"
 
-declare global {
-  interface Window {
-    puter: {
-      ai: {
-        chat: (message: string, options: { model: string; stream?: boolean }) => Promise<any>
-      }
-    }
-  }
-}
-
 type AIModel = {
   id: string
   name: string
@@ -47,29 +37,29 @@ type AIModel = {
 
 const AI_MODELS: AIModel[] = [
   {
-    id: "perplexity/sonar",
+    id: "deepseek-chat",
     name: "Quick Review",
-    description: "Fast summaries and basic research synthesis",
+    description: "Fast summaries with DeepSeek Chat (free, unlimited)",
     icon: <Zap className="w-4 h-4" />,
     speed: "Fast",
   },
   {
-    id: "perplexity/sonar-pro",
-    name: "Professional Review",
-    description: "Professional-grade analysis with comprehensive coverage",
-    icon: <Brain className="w-4 h-4" />,
-    speed: "Medium",
-  },
-  {
-    id: "perplexity/sonar-deep-research",
+    id: "deepseek-reasoner",
     name: "Deep Research",
-    description: "Comprehensive literature review with extensive analysis",
-    icon: <Search className="w-4 h-4" />,
+    description: "Comprehensive analysis with DeepSeek Reasoner (free, unlimited)",
+    icon: <Brain className="w-4 h-4" />,
     speed: "Thorough",
     recommended: true,
   },
   {
-    id: "perplexity/sonar-reasoning-pro",
+    id: "groq-llama",
+    name: "Professional Review",
+    description: "Professional-grade with Llama 3.3 70B via Groq (14,400/day free)",
+    icon: <Search className="w-4 h-4" />,
+    speed: "Medium",
+  },
+  {
+    id: "reasoning",
     name: "Analytical Review",
     description: "Advanced reasoning for complex analytical tasks",
     icon: <BookOpen className="w-4 h-4" />,
@@ -77,11 +67,13 @@ const AI_MODELS: AIModel[] = [
   },
 ]
 
+const puterReady = typeof window !== 'undefined' && !!window.puter;
+
 export default function ReviewsPage() {
   const searchParams = useSearchParams()
   const [researchQuestion, setResearchQuestion] = useState("")
   const [title, setTitle] = useState("")
-  const [selectedModel, setSelectedModel] = useState("perplexity/sonar-deep-research")
+  const [selectedModel, setSelectedModel] = useState("deepseek-reasoner")
   const [isGenerating, setIsGenerating] = useState(false)
   const [review, setReview] = useState<string>("")
   const [savedReviews, setSavedReviews] = useState<StoredLiteratureReview[]>([])
@@ -89,34 +81,11 @@ export default function ReviewsPage() {
   const [error, setError] = useState<string | null>(null)
   const [streamingText, setStreamingText] = useState("")
   const [copied, setCopied] = useState(false)
-  const [puterReady, setPuterReady] = useState(false)
   const [selectedReview, setSelectedReview] = useState<StoredLiteratureReview | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
     loadReviews()
-    
-    // Check if Puter.js is loaded
-    const checkPuter = setInterval(() => {
-      if (window.puter) {
-        console.log("[v0] Puter.js detected and ready")
-        setPuterReady(true)
-        clearInterval(checkPuter)
-      }
-    }, 100)
-
-    // Timeout after 10 seconds
-    const timeout = setTimeout(() => {
-      clearInterval(checkPuter)
-      if (!window.puter) {
-        console.error("[v0] Puter.js failed to load within 10 seconds")
-      }
-    }, 10000)
-
-    return () => {
-      clearInterval(checkPuter)
-      clearTimeout(timeout)
-    }
   }, [])
 
   useEffect(() => {
@@ -133,46 +102,43 @@ export default function ReviewsPage() {
   }
 
   const handleGenerate = async () => {
-    console.log("[v0] Generate clicked, Puter ready:", puterReady, "Window.puter:", !!window.puter)
+    console.log("[v0] Generate clicked with model:", selectedModel)
     
-    if (!window.puter) {
-      setError("Puter.js is not loaded yet. Please wait a moment and try again, or refresh the page.")
-      console.error("[v0] window.puter is not available")
-      return
-    }
-
     setIsGenerating(true)
     setError(null)
     setReview("")
     setStreamingText("")
 
     try {
-      const prompt = `Generate a comprehensive literature review on the following research question:
-
-Research Question: ${researchQuestion}
-
-Please provide a well-structured literature review with the following sections:
-1. Executive Summary
-2. Introduction and Background
-3. Key Themes and Findings
-4. Methodological Approaches
-5. Current Research Gaps
-6. Future Research Directions
-7. Conclusion
-
-Use proper academic language, include relevant insights, and ensure logical flow between sections. Cite general knowledge where appropriate.`
-
-      console.log("[v0] Calling puter.ai.chat with model:", selectedModel)
-      const response = await window.puter.ai.chat(prompt, {
-        model: selectedModel,
-        stream: true,
+      const response = await fetch('/api/generate-review', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          researchQuestion,
+          model: selectedModel,
+        }),
       })
 
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to generate review')
+      }
+
       console.log("[v0] Response received, starting to stream")
+      const reader = response.body?.getReader()
+      const decoder = new TextDecoder()
       let fullText = ""
-      for await (const part of response) {
-        if (part?.text) {
-          fullText += part.text
+
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read()
+          
+          if (done) break
+          
+          const chunk = decoder.decode(value, { stream: true })
+          fullText += chunk
           setStreamingText(fullText)
         }
       }
@@ -248,7 +214,7 @@ Use proper academic language, include relevant insights, and ensure logical flow
             <div>
               <h1 className="text-4xl font-serif font-bold text-foreground mb-2">Literature Review Generator</h1>
               <p className="text-lg text-muted-foreground">
-                AI-powered synthesis powered by Perplexity research models
+                AI-powered synthesis with DeepSeek & Groq (100% free, unlimited)
               </p>
             </div>
 
@@ -257,15 +223,9 @@ Use proper academic language, include relevant insights, and ensure logical flow
                 <CardHeader>
                   <CardTitle className="flex items-center justify-between">
                     <span>Generate New Review</span>
-                    {puterReady ? (
-                      <Badge variant="secondary" className="text-xs">
-                        AI Ready
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline" className="text-xs">
-                        Loading AI...
-                      </Badge>
-                    )}
+                    <Badge variant="secondary" className="text-xs">
+                      AI Ready
+                    </Badge>
                   </CardTitle>
                   <CardDescription>
                     Enter your research question and select an AI model to generate a comprehensive literature review
@@ -377,7 +337,7 @@ Use proper academic language, include relevant insights, and ensure logical flow
                   <div className="flex gap-3">
                     <Button
                       onClick={handleGenerate}
-                      disabled={!researchQuestion.trim() || isGenerating || !puterReady}
+                      disabled={!researchQuestion.trim() || isGenerating}
                       className="flex-1"
                       size="lg"
                     >
@@ -401,23 +361,12 @@ Use proper academic language, include relevant insights, and ensure logical flow
                     )}
                   </div>
 
-                  {!puterReady && (
-                    <Alert>
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertDescription className="text-sm">
-                        Loading Puter.js AI library... If this takes too long, please refresh the page.
-                      </AlertDescription>
-                    </Alert>
-                  )}
-                  {puterReady && (
-                    <Alert>
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertDescription className="text-sm">
-                        First time users will need to create a free Puter account (takes 30 seconds). This enables unlimited
-                        AI access at no cost to you or your users.
-                      </AlertDescription>
-                    </Alert>
-                  )}
+                  <Alert>
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription className="text-sm">
+                      Using DeepSeek (primary, unlimited) with automatic fallback to Groq (14,400 requests/day). Both are 100% free forever.
+                    </AlertDescription>
+                  </Alert>
                 </CardContent>
               </Card>
             </Suspense>
