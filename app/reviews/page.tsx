@@ -14,7 +14,10 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Sparkles, FileText, Trash2, Save, Zap, Brain, Search, AlertCircle, BookOpen, Copy, CheckCheck } from "lucide-react"
+import { Sparkles, FileText, Trash2, Save, Zap, Brain, Search, AlertCircle, BookOpen, Copy, CheckCheck, X } from "lucide-react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { MarkdownRenderer } from "@/components/markdown-renderer"
 import {
   getLiteratureReviews,
   saveLiteratureReview,
@@ -87,6 +90,7 @@ export default function ReviewsPage() {
   const [streamingText, setStreamingText] = useState("")
   const [copied, setCopied] = useState(false)
   const [puterReady, setPuterReady] = useState(false)
+  const [selectedReview, setSelectedReview] = useState<StoredLiteratureReview | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
@@ -443,8 +447,8 @@ Use proper academic language, include relevant insights, and ensure logical flow
               ) : (
                 <div className="grid gap-4">
                   {savedReviews.map((savedReview) => (
-                    <Card key={savedReview.id} className="hover:border-accent/50 transition-colors">
-                      <CardContent className="p-6">
+                    <Card key={savedReview.id} className="hover:border-accent/50 transition-colors cursor-pointer">
+                      <CardContent className="p-6" onClick={() => setSelectedReview(savedReview)}>
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex items-start gap-4 flex-1 min-w-0">
                             <div className="p-2 rounded-lg bg-accent/10 shrink-0">
@@ -466,7 +470,14 @@ Use proper academic language, include relevant insights, and ensure logical flow
                               </div>
                             </div>
                           </div>
-                          <Button variant="ghost" size="icon" onClick={() => handleDelete(savedReview.id)}>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleDelete(savedReview.id)
+                            }}
+                          >
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>
@@ -479,6 +490,47 @@ Use proper academic language, include relevant insights, and ensure logical flow
           </div>
         </div>
       </main>
+
+      {/* Review Viewer Dialog */}
+      <Dialog open={!!selectedReview} onOpenChange={(open) => !open && setSelectedReview(null)}>
+        <DialogContent className="max-w-4xl max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-serif">{selectedReview?.title}</DialogTitle>
+            <DialogDescription className="text-base">{selectedReview?.research_question}</DialogDescription>
+          </DialogHeader>
+          <ScrollArea className="h-[60vh] w-full pr-4">
+            <div className="max-w-none">
+              {selectedReview?.content?.text ? (
+                <MarkdownRenderer content={selectedReview.content.text} />
+              ) : (
+                <p className="text-muted-foreground text-center py-8">No content available</p>
+              )}
+            </div>
+          </ScrollArea>
+          <div className="flex items-center justify-between pt-4 border-t">
+            <div className="text-xs text-muted-foreground">
+              Created {selectedReview && new Date(selectedReview.created_at).toLocaleDateString()}
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  if (selectedReview?.content?.text) {
+                    navigator.clipboard.writeText(selectedReview.content.text)
+                  }
+                }}
+              >
+                <Copy className="w-4 h-4 mr-2" />
+                Copy Content
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setSelectedReview(null)}>
+                Close
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
