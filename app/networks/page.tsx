@@ -103,37 +103,51 @@ export default function NetworksPage() {
   const [selectedNodes, setSelectedNodes] = useState(new Set<string>())
 
   const graphRef = useRef<any>()
+  const lastHoverRef = useRef<string | null>(null)
   const { toast } = useToast()
 
   useEffect(() => {
     loadCollections()
   }, [])
 
-  // Configure d3 forces when graph ref is available
+  // Configure d3 forces ONLY when controls change (not on hover or networkData change)
   useEffect(() => {
-    if (graphRef.current && networkData) {
-      const fg = graphRef.current
+    if (!graphRef.current) return
+    const fg = graphRef.current
 
-      // Configure charge force
-      fg.d3Force("charge")?.strength(chargeStrength)
+    // Configure charge force with reduced strength to prevent runaway
+    fg.d3Force("charge")?.strength(chargeStrength * 0.7)
 
-      // Configure link force
-      fg.d3Force("link")?.distance(linkDistance)
+    // Configure link force with moderate strength
+    fg.d3Force("link")?.distance(linkDistance).strength(0.5)
 
-      // Add collision force for better node separation
-      const d3 = require("d3-force-3d")
-      fg.d3Force(
-        "collide",
-        d3
-          .forceCollide()
-          .radius((node: any) => calculateNodeSize(node.citations, node.type) + 8)
-          .strength(0.8)
-      )
+    // Add collision force with reduced strength to prevent nodes fleeing mouse
+    const d3 = require("d3-force-3d")
+    fg.d3Force(
+      "collide",
+      d3
+        .forceCollide()
+        .radius((node: any) => calculateNodeSize(node.citations, node.type) + 8)
+        .strength(highlightNodes.size > 0 ? 0.1 : 0.3)
+    )
 
-      // Reheat simulation to apply changes
-      fg.d3ReheatSimulation()
-    }
-  }, [chargeStrength, linkDistance, networkData])
+    // Only reheat when controls actually change
+    fg.d3ReheatSimulation()
+  }, [chargeStrength, linkDistance])
+
+  // Cool down simulation after network is built to make graph feel solid
+  useEffect(() => {
+    if (!graphRef.current || !networkData) return
+
+    const fg = graphRef.current
+    const timeout = setTimeout(() => {
+      // Gradually reduce forces after layout stabilizes
+      fg.d3Force("charge")?.strength(0)
+      fg.d3Force("link")?.strength(0.1)
+    }, 3000)
+
+    return () => clearTimeout(timeout)
+  }, [networkData])
 
   const loadCollections = async () => {
     try {
@@ -301,24 +315,27 @@ export default function NetworksPage() {
     }
   }
 
-  // Hover highlighting handler
-  const handleNodeHover = useCallback(
-    (node: GraphNode | null) => {
-      const newHighlightNodes = new Set<string>()
-      const newHighlightLinks = new Set<string>()
+  // Hover highlighting handler with debounce to prevent runaway nodes
+  const handleNodeHover = useCallback((node: GraphNode | null) => {
+    const nodeId = node?.id ?? null
 
-      if (node) {
-        newHighlightNodes.add(node.id)
-        node.neighbors?.forEach((neighborId) => newHighlightNodes.add(neighborId))
-        node.links?.forEach((linkId) => newHighlightLinks.add(linkId))
-      }
+    // Only update if the hovered node actually changed
+    if (lastHoverRef.current === nodeId) return
+    lastHoverRef.current = nodeId
 
-      setHighlightNodes(newHighlightNodes)
-      setHighlightLinks(newHighlightLinks)
-      setHoverNode(node)
-    },
-    []
-  )
+    const newHighlightNodes = new Set<string>()
+    const newHighlightLinks = new Set<string>()
+
+    if (node) {
+      newHighlightNodes.add(node.id)
+      node.neighbors?.forEach((neighborId) => newHighlightNodes.add(neighborId))
+      node.links?.forEach((linkId) => newHighlightLinks.add(linkId))
+    }
+
+    setHighlightNodes(newHighlightNodes)
+    setHighlightLinks(newHighlightLinks)
+    setHoverNode(node)
+  }, [])
 
   // Click to focus on node
   const handleNodeClick = useCallback(
