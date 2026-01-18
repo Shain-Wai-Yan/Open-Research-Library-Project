@@ -2,8 +2,9 @@ import type React from "react"
 import type { Metadata } from "next"
 import { Geist, Geist_Mono, Crimson_Pro } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
-import Script from "next/script"
 import { ClientWrapper } from "@/components/auth/client-wrapper"
+import { PuterScript } from "@/components/puter-script"
+import Script from "next/script"
 import "./globals.css"
 
 const _geist = Geist({ subsets: ["latin"] })
@@ -42,16 +43,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`font-sans antialiased`}>
-        <Script
-          src="https://js.puter.com/v2/"
-          strategy="beforeInteractive"
-          onLoad={() => {
-            console.log("[v0] Puter.js loaded successfully")
-          }}
-          onError={(e) => {
-            console.error("[v0] Failed to load Puter.js:", e)
-          }}
-        />
+        <PuterScript />
         <ClientWrapper>{children}</ClientWrapper>
         <Analytics />
       </body>
