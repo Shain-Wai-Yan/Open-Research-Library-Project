@@ -1,32 +1,125 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import React from "react"
+import { Suspense } from "react"
+import { useSearchParams } from "next/navigation"
+import { useState, useEffect, useRef } from "react"
 import { Sidebar } from "@/components/layout/sidebar"
 import { Header } from "@/components/layout/header"
 import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
-import { Sparkles, FileText, Trash2 } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Sparkles, FileText, Trash2, Save, Zap, Brain, Search, AlertCircle, BookOpen, Copy, CheckCheck } from "lucide-react"
 import {
   getLiteratureReviews,
   saveLiteratureReview,
   deleteLiteratureReview,
   type StoredLiteratureReview,
 } from "@/lib/api-client"
+import Loading from "./loading"
+
+declare global {
+  interface Window {
+    puter: {
+      ai: {
+        chat: (message: string, options: { model: string; stream?: boolean }) => Promise<any>
+      }
+    }
+  }
+}
+
+type AIModel = {
+  id: string
+  name: string
+  description: string
+  icon: React.ReactNode
+  speed: string
+  recommended?: boolean
+}
+
+const AI_MODELS: AIModel[] = [
+  {
+    id: "perplexity/sonar",
+    name: "Quick Review",
+    description: "Fast summaries and basic research synthesis",
+    icon: <Zap className="w-4 h-4" />,
+    speed: "Fast",
+  },
+  {
+    id: "perplexity/sonar-pro",
+    name: "Professional Review",
+    description: "Professional-grade analysis with comprehensive coverage",
+    icon: <Brain className="w-4 h-4" />,
+    speed: "Medium",
+  },
+  {
+    id: "perplexity/sonar-deep-research",
+    name: "Deep Research",
+    description: "Comprehensive literature review with extensive analysis",
+    icon: <Search className="w-4 h-4" />,
+    speed: "Thorough",
+    recommended: true,
+  },
+  {
+    id: "perplexity/sonar-reasoning-pro",
+    name: "Analytical Review",
+    description: "Advanced reasoning for complex analytical tasks",
+    icon: <BookOpen className="w-4 h-4" />,
+    speed: "Analytical",
+  },
+]
 
 export default function ReviewsPage() {
+  const searchParams = useSearchParams()
   const [researchQuestion, setResearchQuestion] = useState("")
   const [title, setTitle] = useState("")
+  const [selectedModel, setSelectedModel] = useState("perplexity/sonar-deep-research")
   const [isGenerating, setIsGenerating] = useState(false)
   const [review, setReview] = useState<string>("")
   const [savedReviews, setSavedReviews] = useState<StoredLiteratureReview[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [streamingText, setStreamingText] = useState("")
+  const [copied, setCopied] = useState(false)
+  const [puterReady, setPuterReady] = useState(false)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
     loadReviews()
+    
+    // Check if Puter.js is loaded
+    const checkPuter = setInterval(() => {
+      if (window.puter) {
+        console.log("[v0] Puter.js detected and ready")
+        setPuterReady(true)
+        clearInterval(checkPuter)
+      }
+    }, 100)
+
+    // Timeout after 10 seconds
+    const timeout = setTimeout(() => {
+      clearInterval(checkPuter)
+      if (!window.puter) {
+        console.error("[v0] Puter.js failed to load within 10 seconds")
+      }
+    }, 10000)
+
+    return () => {
+      clearInterval(checkPuter)
+      clearTimeout(timeout)
+    }
   }, [])
+
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.scrollTop = textareaRef.current.scrollHeight
+    }
+  }, [streamingText])
 
   const loadReviews = async () => {
     setIsLoading(true)
@@ -36,11 +129,64 @@ export default function ReviewsPage() {
   }
 
   const handleGenerate = async () => {
+    console.log("[v0] Generate clicked, Puter ready:", puterReady, "Window.puter:", !!window.puter)
+    
+    if (!window.puter) {
+      setError("Puter.js is not loaded yet. Please wait a moment and try again, or refresh the page.")
+      console.error("[v0] window.puter is not available")
+      return
+    }
+
     setIsGenerating(true)
-    await new Promise((resolve) => setTimeout(resolve, 2000))
-    const generatedContent = `This is a comprehensive literature review addressing: ${researchQuestion}\n\nKey findings and themes have been identified across the research landscape.`
-    setReview(generatedContent)
-    setIsGenerating(false)
+    setError(null)
+    setReview("")
+    setStreamingText("")
+
+    try {
+      const prompt = `Generate a comprehensive literature review on the following research question:
+
+Research Question: ${researchQuestion}
+
+Please provide a well-structured literature review with the following sections:
+1. Executive Summary
+2. Introduction and Background
+3. Key Themes and Findings
+4. Methodological Approaches
+5. Current Research Gaps
+6. Future Research Directions
+7. Conclusion
+
+Use proper academic language, include relevant insights, and ensure logical flow between sections. Cite general knowledge where appropriate.`
+
+      console.log("[v0] Calling puter.ai.chat with model:", selectedModel)
+      const response = await window.puter.ai.chat(prompt, {
+        model: selectedModel,
+        stream: true,
+      })
+
+      console.log("[v0] Response received, starting to stream")
+      let fullText = ""
+      for await (const part of response) {
+        if (part?.text) {
+          fullText += part.text
+          setStreamingText(fullText)
+        }
+      }
+
+      console.log("[v0] Streaming complete, total length:", fullText.length)
+      setReview(fullText)
+      setStreamingText("")
+
+      if (!title.trim()) {
+        const shortTitle = researchQuestion.slice(0, 50) + (researchQuestion.length > 50 ? "..." : "")
+        setTitle(shortTitle)
+      }
+    } catch (err: any) {
+      console.error("[v0] Generation error:", err)
+      setError(err.message || "Failed to generate review. Please try again.")
+    } finally {
+      setIsGenerating(false)
+    }
   }
 
   const handleSave = async () => {
@@ -57,114 +203,274 @@ export default function ReviewsPage() {
       setTitle("")
       setResearchQuestion("")
       setReview("")
+      setError(null)
     } catch (error) {
-      console.error("[Reviews] Failed to save:", error)
-      alert("Failed to save review. Please try again.")
+      console.error("[v0] Failed to save:", error)
+      setError("Failed to save review. Please try again.")
     }
   }
 
   const handleDelete = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this review?")) return
+
     try {
       await deleteLiteratureReview(id)
       await loadReviews()
     } catch (error) {
-      console.error("[Reviews] Failed to delete:", error)
+      console.error("[v0] Failed to delete:", error)
+      setError("Failed to delete review. Please try again.")
     }
   }
 
+  const handleCopy = async () => {
+    if (review) {
+      await navigator.clipboard.writeText(review)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }
+  }
+
+  const displayText = streamingText || review
+
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen bg-background">
       <Sidebar />
 
       <main className="flex-1 ml-64">
         <Header />
 
         <div className="p-8">
-          <div className="max-w-4xl mx-auto">
-            <div className="mb-8">
-              <h1 className="text-3xl font-serif font-bold text-foreground mb-2">Literature Review Generator</h1>
-              <p className="text-muted-foreground">AI-powered synthesis of academic literature</p>
+          <div className="max-w-5xl mx-auto space-y-8">
+            <div>
+              <h1 className="text-4xl font-serif font-bold text-foreground mb-2">Literature Review Generator</h1>
+              <p className="text-lg text-muted-foreground">
+                AI-powered synthesis powered by Perplexity research models
+              </p>
             </div>
 
-            <Card className="p-8 mb-8">
-              <div className="space-y-6">
-                <div className="space-y-2">
-                  <Label>Title</Label>
-                  <Input
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    placeholder="e.g., AI in Customer Experience"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Research Question</Label>
-                  <Textarea
-                    value={researchQuestion}
-                    onChange={(e) => setResearchQuestion(e.target.value)}
-                    placeholder="e.g., How does AI impact customer experience personalization?"
-                    rows={3}
-                  />
-                </div>
-
-                {review && (
-                  <div className="space-y-2">
-                    <Label>Generated Review</Label>
-                    <Textarea value={review} onChange={(e) => setReview(e.target.value)} rows={8} />
-                  </div>
-                )}
-
-                <div className="flex gap-3">
-                  <Button
-                    onClick={handleGenerate}
-                    disabled={!researchQuestion || isGenerating}
-                    className="flex-1"
-                    size="lg"
-                  >
-                    {isGenerating ? (
-                      <>Generating...</>
+            <Suspense fallback={<Loading />}>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between">
+                    <span>Generate New Review</span>
+                    {puterReady ? (
+                      <Badge variant="secondary" className="text-xs">
+                        AI Ready
+                      </Badge>
                     ) : (
-                      <>
-                        <Sparkles className="w-5 h-5 mr-2" />
-                        Generate Review
-                      </>
+                      <Badge variant="outline" className="text-xs">
+                        Loading AI...
+                      </Badge>
                     )}
-                  </Button>
-                  {review && (
-                    <Button onClick={handleSave} disabled={!title.trim()} size="lg" variant="secondary">
-                      Save to Database
-                    </Button>
+                  </CardTitle>
+                  <CardDescription>
+                    Enter your research question and select an AI model to generate a comprehensive literature review
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="title">Review Title</Label>
+                    <Input
+                      id="title"
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                      placeholder="e.g., AI in Customer Experience Management"
+                      disabled={isGenerating}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="question">Research Question</Label>
+                    <Textarea
+                      id="question"
+                      value={researchQuestion}
+                      onChange={(e) => setResearchQuestion(e.target.value)}
+                      placeholder="e.g., How does artificial intelligence impact customer experience personalization in e-commerce?"
+                      rows={3}
+                      disabled={isGenerating}
+                      className="resize-none"
+                    />
+                  </div>
+
+                  <div className="space-y-3">
+                    <Label>AI Research Model</Label>
+                    <RadioGroup value={selectedModel} onValueChange={setSelectedModel} disabled={isGenerating}>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {AI_MODELS.map((model) => (
+                          <label
+                            key={model.id}
+                            className={`relative flex items-start space-x-3 rounded-lg border-2 p-4 cursor-pointer transition-all ${
+                              selectedModel === model.id
+                                ? "border-accent bg-accent/5"
+                                : "border-border hover:border-accent/50"
+                            } ${isGenerating ? "opacity-50 cursor-not-allowed" : ""}`}
+                          >
+                            <RadioGroupItem value={model.id} id={model.id} className="mt-1" />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                {model.icon}
+                                <span className="font-semibold text-sm">{model.name}</span>
+                                {model.recommended && (
+                                  <Badge variant="secondary" className="text-xs">
+                                    Recommended
+                                  </Badge>
+                                )}
+                              </div>
+                              <p className="text-xs text-muted-foreground mb-2">{model.description}</p>
+                              <Badge variant="outline" className="text-xs">
+                                {model.speed}
+                              </Badge>
+                            </div>
+                          </label>
+                        ))}
+                      </div>
+                    </RadioGroup>
+                  </div>
+
+                  {error && (
+                    <Alert variant="destructive">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>{error}</AlertDescription>
+                    </Alert>
                   )}
-                </div>
-              </div>
-            </Card>
+
+                  {displayText && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label>Generated Review</Label>
+                        {!isGenerating && review && (
+                          <Button variant="ghost" size="sm" onClick={handleCopy}>
+                            {copied ? (
+                              <>
+                                <CheckCheck className="w-4 h-4 mr-2" />
+                                Copied!
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="w-4 h-4 mr-2" />
+                                Copy
+                              </>
+                            )}
+                          </Button>
+                        )}
+                      </div>
+                      <Textarea
+                        ref={textareaRef}
+                        value={displayText}
+                        onChange={(e) => setReview(e.target.value)}
+                        rows={20}
+                        className="font-mono text-sm leading-relaxed resize-none"
+                        readOnly={isGenerating}
+                      />
+                      {isGenerating && (
+                        <p className="text-sm text-muted-foreground flex items-center gap-2">
+                          <span className="inline-block w-2 h-2 bg-accent rounded-full animate-pulse" />
+                          Generating review with {AI_MODELS.find((m) => m.id === selectedModel)?.name}...
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="flex gap-3">
+                    <Button
+                      onClick={handleGenerate}
+                      disabled={!researchQuestion.trim() || isGenerating || !puterReady}
+                      className="flex-1"
+                      size="lg"
+                    >
+                      {isGenerating ? (
+                        <>
+                          <span className="inline-block w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
+                          Generating...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-5 h-5 mr-2" />
+                          Generate Review
+                        </>
+                      )}
+                    </Button>
+                    {review && !isGenerating && (
+                      <Button onClick={handleSave} disabled={!title.trim()} size="lg" variant="secondary">
+                        <Save className="w-5 h-5 mr-2" />
+                        Save to Database
+                      </Button>
+                    )}
+                  </div>
+
+                  {!puterReady && (
+                    <Alert>
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription className="text-sm">
+                        Loading Puter.js AI library... If this takes too long, please refresh the page.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                  {puterReady && (
+                    <Alert>
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription className="text-sm">
+                        First time users will need to create a free Puter account (takes 30 seconds). This enables unlimited
+                        AI access at no cost to you or your users.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </CardContent>
+              </Card>
+            </Suspense>
 
             <div className="space-y-4">
-              <h2 className="text-xl font-semibold">Saved Reviews</h2>
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-serif font-semibold">Saved Reviews</h2>
+                <Badge variant="secondary">{savedReviews.length} saved</Badge>
+              </div>
               {isLoading ? (
-                <p className="text-muted-foreground">Loading reviews...</p>
+                <Card>
+                  <CardContent className="p-8 text-center">
+                    <p className="text-muted-foreground">Loading reviews...</p>
+                  </CardContent>
+                </Card>
               ) : savedReviews.length === 0 ? (
-                <Card className="p-8 text-center">
-                  <p className="text-muted-foreground">No saved reviews yet. Generate and save one above!</p>
+                <Card>
+                  <CardContent className="p-12 text-center">
+                    <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                    <h3 className="font-semibold text-lg mb-2">No saved reviews yet</h3>
+                    <p className="text-muted-foreground text-sm">
+                      Generate and save your first literature review above!
+                    </p>
+                  </CardContent>
                 </Card>
               ) : (
-                <div className="space-y-3">
+                <div className="grid gap-4">
                   {savedReviews.map((savedReview) => (
-                    <Card key={savedReview.id} className="p-6">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-start gap-3 flex-1">
-                          <FileText className="w-5 h-5 text-accent mt-1" />
-                          <div>
-                            <h3 className="font-semibold">{savedReview.title}</h3>
-                            <p className="text-sm text-muted-foreground mt-1">{savedReview.research_question}</p>
-                            <p className="text-xs text-muted-foreground mt-2">
-                              Created {new Date(savedReview.created_at).toLocaleDateString()}
-                            </p>
+                    <Card key={savedReview.id} className="hover:border-accent/50 transition-colors">
+                      <CardContent className="p-6">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex items-start gap-4 flex-1 min-w-0">
+                            <div className="p-2 rounded-lg bg-accent/10 shrink-0">
+                              <FileText className="w-5 h-5 text-accent" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-semibold text-lg mb-1 truncate">{savedReview.title}</h3>
+                              <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
+                                {savedReview.research_question}
+                              </p>
+                              <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                                <span>Created {new Date(savedReview.created_at).toLocaleDateString()}</span>
+                                <span>•</span>
+                                <span>
+                                  {savedReview.content?.text
+                                    ? `${Math.ceil(savedReview.content.text.split(" ").length / 200)} min read`
+                                    : "No content"}
+                                </span>
+                              </div>
+                            </div>
                           </div>
+                          <Button variant="ghost" size="icon" onClick={() => handleDelete(savedReview.id)}>
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
                         </div>
-                        <Button variant="ghost" size="icon" onClick={() => handleDelete(savedReview.id)}>
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
+                      </CardContent>
                     </Card>
                   ))}
                 </div>
