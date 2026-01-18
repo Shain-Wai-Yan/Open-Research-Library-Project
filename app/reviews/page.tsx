@@ -358,14 +358,13 @@ Use proper academic language, include relevant insights, and ensure logical flow
                           </Button>
                         )}
                       </div>
-                      <Textarea
-                        ref={textareaRef}
-                        value={displayText}
-                        onChange={(e) => setReview(e.target.value)}
-                        rows={20}
-                        className="font-mono text-sm leading-relaxed resize-none"
-                        readOnly={isGenerating}
-                      />
+                      <Card>
+                        <CardContent className="p-6">
+                          <ScrollArea className="h-[500px] w-full pr-4">
+                            <MarkdownRenderer content={displayText} />
+                          </ScrollArea>
+                        </CardContent>
+                      </Card>
                       {isGenerating && (
                         <p className="text-sm text-muted-foreground flex items-center gap-2">
                           <span className="inline-block w-2 h-2 bg-accent rounded-full animate-pulse" />
