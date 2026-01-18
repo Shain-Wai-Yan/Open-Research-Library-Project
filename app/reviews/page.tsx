@@ -200,11 +200,11 @@ export default function ReviewsPage() {
       <main className="flex-1 lg:ml-64">
         <Header />
 
-        <div className="p-8">
-          <div className="max-w-5xl mx-auto space-y-8">
+        <div className="p-4 md:p-6 lg:p-8">
+          <div className="max-w-5xl mx-auto space-y-6 md:space-y-8">
             <div>
-              <h1 className="text-4xl font-serif font-bold text-foreground mb-2">Literature Review Generator</h1>
-              <p className="text-lg text-muted-foreground">
+              <h1 className="text-2xl md:text-3xl lg:text-4xl font-serif font-bold text-foreground mb-2 text-balance">Literature Review Generator</h1>
+              <p className="text-sm md:text-base lg:text-lg text-muted-foreground text-pretty">
                 AI-powered synthesis with DeepSeek & Groq (100% free, unlimited)
               </p>
             </div>
@@ -250,19 +250,19 @@ export default function ReviewsPage() {
                   <div className="space-y-3">
                     <Label>AI Research Model</Label>
                     <RadioGroup value={selectedModel} onValueChange={setSelectedModel} disabled={isGenerating}>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 gap-3">
                         {AI_MODELS.map((model) => (
                           <label
                             key={model.id}
-                            className={`relative flex items-start space-x-3 rounded-lg border-2 p-4 cursor-pointer transition-all ${
+                            className={`relative flex items-start space-x-3 rounded-lg border-2 p-3 md:p-4 cursor-pointer transition-all ${
                               selectedModel === model.id
                                 ? "border-accent bg-accent/5"
                                 : "border-border hover:border-accent/50"
                             } ${isGenerating ? "opacity-50 cursor-not-allowed" : ""}`}
                           >
-                            <RadioGroupItem value={model.id} id={model.id} className="mt-1" />
+                            <RadioGroupItem value={model.id} id={model.id} className="mt-1 shrink-0" />
                             <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-1">
+                              <div className="flex flex-wrap items-center gap-2 mb-1">
                                 {model.icon}
                                 <span className="font-semibold text-sm">{model.name}</span>
                                 {model.recommended && (
@@ -271,7 +271,7 @@ export default function ReviewsPage() {
                                   </Badge>
                                 )}
                               </div>
-                              <p className="text-xs text-muted-foreground mb-2">{model.description}</p>
+                              <p className="text-xs text-muted-foreground mb-2 break-words">{model.description}</p>
                               <Badge variant="outline" className="text-xs">
                                 {model.speed}
                               </Badge>
@@ -325,7 +325,7 @@ export default function ReviewsPage() {
                     </div>
                   )}
 
-                  <div className="flex gap-3">
+                  <div className="flex flex-col sm:flex-row gap-3">
                     <Button
                       onClick={handleGenerate}
                       disabled={!researchQuestion.trim() || isGenerating}
@@ -335,19 +335,22 @@ export default function ReviewsPage() {
                       {isGenerating ? (
                         <>
                           <span className="inline-block w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
-                          Generating...
+                          <span className="hidden sm:inline">Generating...</span>
+                          <span className="sm:hidden">Generating</span>
                         </>
                       ) : (
                         <>
-                          <Sparkles className="w-5 h-5 mr-2" />
-                          Generate Review
+                          <Sparkles className="w-4 md:w-5 h-4 md:h-5 mr-2" />
+                          <span className="hidden sm:inline">Generate Review</span>
+                          <span className="sm:hidden">Generate</span>
                         </>
                       )}
                     </Button>
                     {review && !isGenerating && (
-                      <Button onClick={handleSave} disabled={!title.trim()} size="lg" variant="secondary">
-                        <Save className="w-5 h-5 mr-2" />
-                        Save to Database
+                      <Button onClick={handleSave} disabled={!title.trim()} size="lg" variant="secondary" className="flex-1 sm:flex-initial">
+                        <Save className="w-4 md:w-5 h-4 md:h-5 mr-2" />
+                        <span className="hidden sm:inline">Save to Database</span>
+                        <span className="sm:hidden">Save</span>
                       </Button>
                     )}
                   </div>
@@ -363,9 +366,9 @@ export default function ReviewsPage() {
             </Suspense>
 
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-serif font-semibold">Saved Reviews</h2>
-                <Badge variant="secondary">{savedReviews.length} saved</Badge>
+              <div className="flex items-center justify-between gap-2">
+                <h2 className="text-xl md:text-2xl font-serif font-semibold">Saved Reviews</h2>
+                <Badge variant="secondary" className="shrink-0">{savedReviews.length} saved</Badge>
               </div>
               {isLoading ? (
                 <Card>
@@ -387,21 +390,21 @@ export default function ReviewsPage() {
                 <div className="grid gap-4">
                   {savedReviews.map((savedReview) => (
                     <Card key={savedReview.id} className="hover:border-accent/50 transition-colors cursor-pointer">
-                      <CardContent className="p-6" onClick={() => setSelectedReview(savedReview)}>
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex items-start gap-4 flex-1 min-w-0">
-                            <div className="p-2 rounded-lg bg-accent/10 shrink-0">
-                              <FileText className="w-5 h-5 text-accent" />
+                      <CardContent className="p-4 md:p-6" onClick={() => setSelectedReview(savedReview)}>
+                        <div className="flex items-start justify-between gap-3 md:gap-4">
+                          <div className="flex items-start gap-3 md:gap-4 flex-1 min-w-0">
+                            <div className="p-2 rounded-lg bg-accent/10 shrink-0 hidden sm:block">
+                              <FileText className="w-4 md:w-5 h-4 md:h-5 text-accent" />
                             </div>
                             <div className="flex-1 min-w-0">
-                              <h3 className="font-semibold text-lg mb-1 truncate">{savedReview.title}</h3>
-                              <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
+                              <h3 className="font-semibold text-base md:text-lg mb-1 line-clamp-2">{savedReview.title}</h3>
+                              <p className="text-xs md:text-sm text-muted-foreground line-clamp-2 mb-3">
                                 {savedReview.research_question}
                               </p>
-                              <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                                <span>Created {new Date(savedReview.created_at).toLocaleDateString()}</span>
-                                <span>•</span>
-                                <span>
+                              <div className="flex flex-wrap items-center gap-2 md:gap-3 text-xs text-muted-foreground">
+                                <span className="whitespace-nowrap">Created {new Date(savedReview.created_at).toLocaleDateString()}</span>
+                                <span className="hidden sm:inline">•</span>
+                                <span className="whitespace-nowrap">
                                   {savedReview.content?.text
                                     ? `${Math.ceil(savedReview.content.text.split(" ").length / 200)} min read`
                                     : "No content"}
@@ -412,12 +415,13 @@ export default function ReviewsPage() {
                           <Button 
                             variant="ghost" 
                             size="icon" 
+                            className="shrink-0 h-8 w-8 md:h-9 md:w-9"
                             onClick={(e) => {
                               e.stopPropagation()
                               handleDelete(savedReview.id)
                             }}
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <Trash2 className="w-3 md:w-4 h-3 md:h-4" />
                           </Button>
                         </div>
                       </CardContent>
@@ -432,10 +436,10 @@ export default function ReviewsPage() {
 
       {/* Review Viewer Dialog */}
       <Dialog open={!!selectedReview} onOpenChange={(open) => !open && setSelectedReview(null)}>
-        <DialogContent className="max-w-4xl max-h-[90vh]">
+        <DialogContent className="max-w-4xl max-h-[90vh] w-[95vw] md:w-full">
           <DialogHeader>
-            <DialogTitle className="text-2xl font-serif">{selectedReview?.title}</DialogTitle>
-            <DialogDescription className="text-base">{selectedReview?.research_question}</DialogDescription>
+            <DialogTitle className="text-lg md:text-2xl font-serif pr-6">{selectedReview?.title}</DialogTitle>
+            <DialogDescription className="text-sm md:text-base">{selectedReview?.research_question}</DialogDescription>
           </DialogHeader>
           <ScrollArea className="h-[60vh] w-full pr-4">
             <div className="max-w-none">
@@ -446,14 +450,15 @@ export default function ReviewsPage() {
               )}
             </div>
           </ScrollArea>
-          <div className="flex items-center justify-between pt-4 border-t">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-4 border-t">
             <div className="text-xs text-muted-foreground">
               Created {selectedReview && new Date(selectedReview.created_at).toLocaleDateString()}
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
               <Button
                 variant="outline"
                 size="sm"
+                className="w-full sm:w-auto bg-transparent"
                 onClick={() => {
                   if (selectedReview?.content?.text) {
                     navigator.clipboard.writeText(selectedReview.content.text)
@@ -461,9 +466,9 @@ export default function ReviewsPage() {
                 }}
               >
                 <Copy className="w-4 h-4 mr-2" />
-                Copy Content
+                Copy
               </Button>
-              <Button variant="outline" size="sm" onClick={() => setSelectedReview(null)}>
+              <Button variant="outline" size="sm" className="w-full sm:w-auto bg-transparent" onClick={() => setSelectedReview(null)}>
                 Close
               </Button>
             </div>

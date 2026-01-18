@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Search, Library, Lightbulb, FileText, Network, BarChart3, Settings, BookOpen, Bug, MessageSquare, X } from "lucide-react"
+import { Search, Library, Lightbulb, FileText, Network, BarChart3, Settings, BookOpen, MessageSquare, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useSidebar } from "./sidebar-context"
 import { Button } from "@/components/ui/button"
@@ -94,21 +94,8 @@ export function Sidebar() {
           })}
         </nav>
 
-        {/* Settings and Debug */}
+        {/* Settings */}
         <div className="p-4 border-t border-border space-y-1">
-          <Link
-            href="/test-supabase"
-            onClick={handleLinkClick}
-            className={cn(
-              "flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors",
-              pathname === "/test-supabase"
-                ? "bg-amber-500 text-white"
-                : "text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950",
-            )}
-          >
-            <Bug className="w-5 h-5" />
-            Supabase Debug
-          </Link>
           <Link
             href="/settings"
             onClick={handleLinkClick}

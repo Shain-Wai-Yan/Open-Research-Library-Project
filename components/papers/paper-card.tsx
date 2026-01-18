@@ -60,23 +60,23 @@ export function PaperCard({ paper, onSave }: PaperCardProps) {
 
   return (
     <>
-      <Card className="p-4 md:p-6 border-2 hover:border-primary/50 transition-all duration-300 hover-lift group animate-slide-up">
-        <div className="space-y-3 md:space-y-4">
+      <Card className="p-4 md:p-6 border-2 hover:border-primary/50 transition-all duration-300 hover-lift group animate-slide-up w-full">
+        <div className="space-y-3 md:space-y-4 w-full">
           {/* Header */}
-          <div className="flex items-start justify-between gap-3">
+          <div className="flex items-start justify-between gap-2 md:gap-3 w-full">
             <div className="flex-1 min-w-0">
               <Link
                 href={`/paper/${encodeURIComponent(paper.id)}`}
-                className="text-base md:text-lg font-serif font-semibold text-foreground hover:text-primary transition-colors duration-300 group-hover:text-primary line-clamp-3 md:line-clamp-none"
+                className="text-sm md:text-base lg:text-lg font-serif font-semibold text-foreground hover:text-primary transition-colors duration-300 group-hover:text-primary line-clamp-2 md:line-clamp-3 break-words"
               >
                 {paper.title}
               </Link>
               <div className="mt-2 flex flex-wrap items-center gap-1.5 md:gap-2 text-xs md:text-sm text-muted-foreground">
-                <span className="line-clamp-1">{paper.authors.slice(0, 3).map((a) => a.name).join(", ")}{paper.authors.length > 3 ? "..." : ""}</span>
-                <span className="hidden sm:inline">•</span>
-                <span>{new Date(paper.publicationDate).getFullYear()}</span>
-                <span className="hidden sm:inline">•</span>
-                <span className="hidden sm:inline truncate">{paper.venue}</span>
+                <span className="line-clamp-1 break-all">{paper.authors.slice(0, 3).map((a) => a.name).join(", ")}{paper.authors.length > 3 ? "..." : ""}</span>
+                <span className="hidden sm:inline shrink-0">•</span>
+                <span className="shrink-0">{new Date(paper.publicationDate).getFullYear()}</span>
+                <span className="hidden md:inline shrink-0">•</span>
+                <span className="hidden md:inline truncate">{paper.venue}</span>
               </div>
             </div>
 
@@ -91,23 +91,23 @@ export function PaperCard({ paper, onSave }: PaperCardProps) {
           </div>
 
           {/* Abstract */}
-          <p className="text-xs md:text-sm text-muted-foreground line-clamp-2 md:line-clamp-3">{paper.abstract}</p>
+          <p className="text-xs md:text-sm text-muted-foreground line-clamp-2 md:line-clamp-3 break-words">{paper.abstract}</p>
 
           <div className="flex flex-wrap items-center gap-1.5 md:gap-2">
-            <Badge variant="secondary" className="gradient-teal text-white border-0 text-xs">
+            <Badge variant="secondary" className="gradient-teal text-white border-0 text-xs whitespace-nowrap">
               {paper.citationCount} citations
             </Badge>
             {paper.methodology && (
-              <Badge variant="outline" className="capitalize border-chart-2 text-chart-2 text-xs">
+              <Badge variant="outline" className="capitalize border-chart-2 text-chart-2 text-xs whitespace-nowrap">
                 {paper.methodology.replace("-", " ")}
               </Badge>
             )}
             {paper.openAccess && (
-              <Badge variant="outline" className="gradient-emerald text-white border-0 text-xs">
+              <Badge variant="outline" className="gradient-emerald text-white border-0 text-xs whitespace-nowrap">
                 Open Access
               </Badge>
             )}
-            <Badge variant="outline" className="capitalize border-chart-4 text-chart-4 text-xs">
+            <Badge variant="outline" className="capitalize border-chart-4 text-chart-4 text-xs whitespace-nowrap">
               {paper.source}
             </Badge>
           </div>
@@ -121,7 +121,7 @@ export function PaperCard({ paper, onSave }: PaperCardProps) {
                 className="border-2 hover:border-chart-1 hover:text-chart-1 transition-all duration-300 bg-transparent h-8 text-xs"
               >
                 <a href={paper.pdfUrl} target="_blank" rel="noopener noreferrer">
-                  <FileText className="w-3 md:w-4 h-3 md:h-4 mr-1.5" />
+                  <FileText className="w-3 md:w-4 h-3 md:h-4 mr-1 md:mr-1.5" />
                   PDF
                 </a>
               </Button>
@@ -134,7 +134,7 @@ export function PaperCard({ paper, onSave }: PaperCardProps) {
                 className="border-2 hover:border-chart-2 hover:text-chart-2 transition-all duration-300 bg-transparent h-8 text-xs"
               >
                 <a href={`https://doi.org/${paper.doi}`} target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="w-3 md:w-4 h-3 md:h-4 mr-1.5" />
+                  <ExternalLink className="w-3 md:w-4 h-3 md:h-4 mr-1 md:mr-1.5" />
                   DOI
                 </a>
               </Button>
@@ -144,10 +144,10 @@ export function PaperCard({ paper, onSave }: PaperCardProps) {
       </Card>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent>
+        <DialogContent className="w-[95vw] max-w-md">
           <DialogHeader>
-            <DialogTitle>Save Paper to Collection</DialogTitle>
-            <DialogDescription>Choose a collection to save this paper</DialogDescription>
+            <DialogTitle className="text-base md:text-lg">Save Paper to Collection</DialogTitle>
+            <DialogDescription className="text-sm">Choose a collection to save this paper</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 pt-4">
             {collections.length === 0 ? (
@@ -155,7 +155,7 @@ export function PaperCard({ paper, onSave }: PaperCardProps) {
             ) : (
               <>
                 <Select value={selectedCollection} onValueChange={setSelectedCollection}>
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select a collection" />
                   </SelectTrigger>
                   <SelectContent>
