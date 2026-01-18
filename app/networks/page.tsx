@@ -114,20 +114,20 @@ export default function NetworksPage() {
     if (graphRef.current && networkData) {
       const fg = graphRef.current
 
-      // Configure charge force
-      fg.d3Force("charge")?.strength(chargeStrength)
+      // Configure charge force with reduced strength for easier dragging
+      fg.d3Force("charge")?.strength(chargeStrength * 0.7)
 
-      // Configure link force
-      fg.d3Force("link")?.distance(linkDistance)
+      // Configure link force with some elasticity
+      fg.d3Force("link")?.distance(linkDistance).strength(0.5)
 
-      // Add collision force for better node separation
+      // Add collision force for better node separation but less aggressive
       const d3 = require("d3-force-3d")
       fg.d3Force(
         "collide",
         d3
           .forceCollide()
           .radius((node: any) => calculateNodeSize(node.citations, node.type) + 8)
-          .strength(0.8)
+          .strength(0.5)
       )
 
       // Reheat simulation to apply changes
@@ -351,12 +351,26 @@ export default function NetworksPage() {
     [selectedNodes, toast]
   )
 
-  // Auto-fix nodes after dragging
+  // Handle node drag start - temporarily fix position during drag
+  const handleNodeDragStart = useCallback((node: GraphNode) => {
+    // Temporarily fix the node position during drag
+    node.fx = node.x
+    node.fy = node.y
+  }, [])
+
+  // Handle node drag - update fixed position
+  const handleNodeDrag = useCallback((node: GraphNode) => {
+    // Update fixed position as we drag
+    node.fx = node.x
+    node.fy = node.y
+  }, [])
+
+  // Handle node drag end - release or keep fixed based on user preference
   const handleNodeDragEnd = useCallback((node: GraphNode) => {
-    if (node.x !== undefined && node.y !== undefined) {
-      node.fx = node.x
-      node.fy = node.y
-    }
+    // Release the node so it responds to forces again
+    // (users can right-click if they want to pin it permanently)
+    node.fx = undefined
+    node.fy = undefined
   }, [])
 
   // Link hover handler
@@ -948,6 +962,8 @@ export default function NetworksPage() {
                                 // Interaction handlers
                                 onNodeClick={handleNodeClick}
                                 onNodeHover={handleNodeHover}
+                                onNodeDragStart={handleNodeDragStart}
+                                onNodeDrag={handleNodeDrag}
                                 onNodeDragEnd={handleNodeDragEnd}
                                 onLinkHover={handleLinkHover}
                                 onNodeRightClick={(node: any) => {
@@ -1054,7 +1070,7 @@ export default function NetworksPage() {
                                   <span className="font-semibold">Right-click:</span> Pin/unpin position
                                 </div>
                                 <div>
-                                  <span className="font-semibold">Drag node:</span> Auto-fixes after release
+                                  <span className="font-semibold">Drag node:</span> Temporarily move, releases after
                                 </div>
                                 <div>
                                   <span className="font-semibold">Paper click:</span> Opens DOI link
