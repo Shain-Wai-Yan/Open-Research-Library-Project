@@ -1,14 +1,14 @@
 "use client"
 
+import { CardContent } from "@/components/ui/card"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Badge } from "@/components/ui/badge"
 import React from "react"
 import { useState, useEffect, useRef } from "react"
 import { Sidebar } from "@/components/layout/sidebar"
 import { Header } from "@/components/layout/header"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
-import { Badge } from "@/components/ui/badge"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { 
   Select, 
   SelectContent, 
@@ -30,6 +30,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { Card } from "@/components/ui/card"
 import { 
   Send, 
   Bot, 
@@ -40,18 +41,24 @@ import {
   Check, 
   Download,
   Trash2,
-  RotateCcw,
   StopCircle,
   History,
-  Save,
   ChevronDown,
   BookOpen,
   Zap,
-  MessageSquare
+  MessageSquare,
+  MoreHorizontal
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { MarkdownRenderer } from "@/components/markdown-renderer"
 import { toast } from "sonner"
+
+const SUGGESTED_PROMPTS = [
+  { title: "Paper Summary", prompt: "Summarize the key points of this research paper." },
+  { title: "Question Answering", prompt: "Answer the following research question." },
+  { title: "Literature Review", prompt: "Provide a literature review on this topic." },
+  { title: "Methodology", prompt: "Explain the methodology used in this study." },
+]
 
 type Message = {
   id: string
@@ -70,36 +77,9 @@ type Conversation = {
 }
 
 const AI_MODELS = [
-  { id: "deepseek-chat", name: "DeepSeek Chat", description: "Fast & balanced responses", icon: Zap },
-  { id: "deepseek-reasoner", name: "DeepSeek Reasoner", description: "Deep analytical thinking", icon: BookOpen },
-  { id: "groq-llama", name: "Llama 3.3 70B", description: "Professional grade quality", icon: Sparkles },
-]
-
-const SUGGESTED_PROMPTS = [
-  {
-    title: "Research Methodology",
-    prompt: "Explain the key differences between qualitative and quantitative research methods, with examples."
-  },
-  {
-    title: "Literature Review",
-    prompt: "What's the best approach to conducting a systematic literature review? Give me a step-by-step guide."
-  },
-  {
-    title: "Research Gaps",
-    prompt: "How do I identify and articulate research gaps in AI ethics and responsible AI development?"
-  },
-  {
-    title: "Statistical Analysis",
-    prompt: "Explain when to use different statistical tests (t-test, ANOVA, chi-square) in research."
-  },
-  {
-    title: "Meta-Analysis",
-    prompt: "Walk me through the process of conducting a meta-analysis, including key considerations and pitfalls."
-  },
-  {
-    title: "Citation Practices",
-    prompt: "What are best practices for citation management and avoiding plagiarism in academic writing?"
-  },
+  { id: "deepseek-chat", name: "DeepSeek Chat", description: "Fast & balanced", icon: Zap },
+  { id: "deepseek-reasoner", name: "DeepSeek Reasoner", description: "Deep analysis", icon: BookOpen },
+  { id: "groq-llama", name: "Llama 3.3 70B", description: "Professional", icon: Sparkles },
 ]
 
 export default function AssistantPage() {
@@ -114,9 +94,10 @@ export default function AssistantPage() {
   const [showHistoryDialog, setShowHistoryDialog] = useState(false)
   const [abortController, setAbortController] = useState<AbortController | null>(null)
   
-  const scrollAreaRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const messagesContainerRef = useRef<HTMLDivElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const scrollAreaRef = useRef<HTMLDivElement>(null)
 
   // Load conversations from localStorage on mount
   useEffect(() => {
@@ -148,7 +129,9 @@ export default function AssistantPage() {
 
   // Auto-scroll to bottom
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight
+    }
   }, [messages, streamingMessage])
 
   // Focus textarea on mount
@@ -335,11 +318,6 @@ export default function AssistantPage() {
     }
   }
 
-  const handleSuggestedPrompt = (prompt: string) => {
-    setInput(prompt)
-    textareaRef.current?.focus()
-  }
-
   const currentModel = AI_MODELS.find(m => m.id === selectedModel)
   const ModelIcon = currentModel?.icon || Sparkles
 
@@ -347,287 +325,227 @@ export default function AssistantPage() {
     <div className="flex min-h-screen bg-background">
       <Sidebar />
 
-      <main className="flex-1 ml-64 flex flex-col">
+      <main className="flex-1 ml-64 flex flex-col h-screen">
         <Header />
 
-        <div className="flex-1 flex flex-col p-6 lg:p-8">
-          <div className="max-w-6xl mx-auto w-full flex flex-col h-[calc(100vh-10rem)]">
-            {/* Enhanced Header */}
-            <div className="mb-6">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h1 className="text-3xl lg:text-4xl font-serif font-bold text-foreground mb-2 flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center">
-                      <Bot className="w-6 h-6 text-primary-foreground" />
-                    </div>
-                    AI Research Assistant
-                  </h1>
-                  <p className="text-base lg:text-lg text-muted-foreground">
-                    Get expert help with papers, research questions, and academic insights
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant="secondary" className="h-fit hidden sm:flex">
-                    <Sparkles className="w-3 h-3 mr-1" />
-                    {messages.length} {messages.length === 1 ? 'message' : 'messages'}
-                  </Badge>
-                </div>
-              </div>
-
-              {/* Controls Bar */}
-              <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-muted/50 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <span className="text-sm text-muted-foreground hidden sm:block">Model:</span>
-                  <Select value={selectedModel} onValueChange={setSelectedModel} disabled={isLoading}>
-                    <SelectTrigger className="w-[200px] lg:w-[280px]">
-                      <div className="flex items-center gap-2">
-                        <ModelIcon className="w-4 h-4" />
-                        <SelectValue />
-                      </div>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {AI_MODELS.map((model) => {
-                        const Icon = model.icon
-                        return (
-                          <SelectItem key={model.id} value={model.id}>
-                            <div className="flex items-center gap-2">
-                              <Icon className="w-4 h-4" />
-                              <div className="flex flex-col items-start">
-                                <span className="font-medium">{model.name}</span>
-                                <span className="text-xs text-muted-foreground">{model.description}</span>
-                              </div>
-                            </div>
-                          </SelectItem>
-                        )
-                      })}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleNewChat}
-                    disabled={isLoading}
-                  >
-                    <MessageSquare className="w-4 h-4 mr-2" />
-                    New Chat
-                  </Button>
-
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="outline" size="sm">
-                        <ChevronDown className="w-4 h-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-48">
-                      <DropdownMenuItem onClick={() => setShowHistoryDialog(true)}>
-                        <History className="w-4 h-4 mr-2" />
-                        History ({conversations.length})
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={handleExportChat} disabled={messages.length === 0}>
-                        <Download className="w-4 h-4 mr-2" />
-                        Export Chat
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem 
-                        onClick={handleClearChat} 
-                        disabled={messages.length === 0}
-                        className="text-destructive"
-                      >
-                        <Trash2 className="w-4 h-4 mr-2" />
-                        Clear Chat
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              </div>
+        {/* Chat Container - Full Height */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Top Bar - Minimal */}
+          <div className="border-b px-6 py-3 flex items-center justify-between bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+            <div className="flex items-center gap-3">
+              <Select value={selectedModel} onValueChange={setSelectedModel} disabled={isLoading}>
+                <SelectTrigger className="w-[180px] border-0 bg-transparent">
+                  <div className="flex items-center gap-2">
+                    <ModelIcon className="w-4 h-4" />
+                    <SelectValue />
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  {AI_MODELS.map((model) => {
+                    const Icon = model.icon
+                    return (
+                      <SelectItem key={model.id} value={model.id}>
+                        <div className="flex items-center gap-2">
+                          <Icon className="w-4 h-4" />
+                          <span className="font-medium">{model.name}</span>
+                        </div>
+                      </SelectItem>
+                    )
+                  })}
+                </SelectContent>
+              </Select>
             </div>
 
-            {/* Enhanced Chat Area */}
-            <Card className="flex-1 flex flex-col overflow-hidden border-2">
-              <ScrollArea ref={scrollAreaRef} className="flex-1 p-4 lg:p-6">
-                {messages.length === 0 && !streamingMessage && (
-                  <div className="h-full flex items-center justify-center">
-                    <div className="text-center max-w-2xl px-4">
-                      <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center mx-auto mb-6">
-                        <Bot className="w-10 h-10 text-primary-foreground" />
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleNewChat}
+                disabled={isLoading}
+              >
+                <MessageSquare className="w-4 h-4" />
+              </Button>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm">
+                    <MoreHorizontal className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem onClick={() => setShowHistoryDialog(true)}>
+                    <History className="w-4 h-4 mr-2" />
+                    History ({conversations.length})
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleExportChat} disabled={messages.length === 0}>
+                    <Download className="w-4 h-4 mr-2" />
+                    Export Chat
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem 
+                    onClick={handleClearChat} 
+                    disabled={messages.length === 0}
+                    className="text-destructive"
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Clear Chat
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
+
+          {/* Messages Area - Scrollable */}
+          <div 
+            ref={messagesContainerRef}
+            className="flex-1 overflow-y-auto px-4 py-6"
+          >
+            <div className="max-w-3xl mx-auto">
+              {messages.length === 0 && !streamingMessage && (
+                <div className="flex items-center justify-center min-h-[60vh]">
+                  <div className="text-center">
+                    <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
+                      <Bot className="w-8 h-8 text-muted-foreground" />
+                    </div>
+                    <h3 className="text-xl font-semibold mb-2">AI Research Assistant</h3>
+                    <p className="text-muted-foreground text-sm">
+                      Ask me anything about research, papers, or academic topics
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-6">
+                {messages.map((message) => (
+                  <div
+                    key={message.id}
+                    className="group"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className={cn(
+                        "w-7 h-7 rounded-lg flex items-center justify-center shrink-0 mt-1",
+                        message.role === "assistant" ? "bg-primary" : "bg-muted"
+                      )}>
+                        {message.role === "assistant" ? (
+                          <Bot className="w-4 h-4 text-primary-foreground" />
+                        ) : (
+                          <User className="w-4 h-4 text-muted-foreground" />
+                        )}
                       </div>
-                      <h3 className="text-2xl font-semibold mb-3">Welcome to AI Research Assistant</h3>
-                      <p className="text-muted-foreground mb-8 text-lg">
-                        Your intelligent companion for academic research and analysis
-                      </p>
                       
-                      <div className="text-left">
-                        <h4 className="text-sm font-semibold text-muted-foreground uppercase mb-3">Suggested Prompts</h4>
-                        <div className="grid gap-2">
-                          {SUGGESTED_PROMPTS.slice(0, 4).map((suggestion, idx) => (
-                            <button
-                              key={idx}
-                              onClick={() => handleSuggestedPrompt(suggestion.prompt)}
-                              className="group p-4 bg-gradient-to-r from-secondary/50 to-secondary/30 hover:from-secondary hover:to-secondary/50 border border-border/50 hover:border-primary/50 rounded-lg text-left transition-all duration-200 hover:scale-[1.02]"
-                            >
-                              <div className="flex items-start justify-between gap-3">
-                                <div className="flex-1">
-                                  <p className="font-medium text-sm mb-1 text-foreground">{suggestion.title}</p>
-                                  <p className="text-sm text-muted-foreground line-clamp-2">{suggestion.prompt}</p>
-                                </div>
-                                <Send className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors shrink-0 mt-1" />
-                              </div>
-                            </button>
-                          ))}
+                      <div className="flex-1 space-y-2 overflow-hidden">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium">
+                            {message.role === "assistant" ? "Assistant" : "You"}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                        
+                        <div className="text-sm">
+                          {message.role === "assistant" ? (
+                            <div className="prose prose-sm max-w-none dark:prose-invert prose-p:leading-relaxed prose-pre:p-0">
+                              <MarkdownRenderer content={message.content} />
+                            </div>
+                          ) : (
+                            <p className="whitespace-pre-wrap leading-relaxed text-foreground">
+                              {message.content}
+                            </p>
+                          )}
+                        </div>
+
+                        {message.role === "assistant" && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={() => handleCopy(message.content, message.id)}
+                          >
+                            {copiedId === message.id ? (
+                              <>
+                                <Check className="w-3 h-3 mr-1.5" />
+                                <span className="text-xs">Copied</span>
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="w-3 h-3 mr-1.5" />
+                                <span className="text-xs">Copy</span>
+                              </>
+                            )}
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+
+                {streamingMessage && (
+                  <div className="group">
+                    <div className="flex items-start gap-3">
+                      <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center shrink-0 mt-1">
+                        <Bot className="w-4 h-4 text-primary-foreground" />
+                      </div>
+                      
+                      <div className="flex-1 space-y-2 overflow-hidden">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium">Assistant</span>
+                          <div className="flex items-center gap-1">
+                            <div className="w-1 h-1 bg-primary rounded-full animate-pulse" />
+                            <div className="w-1 h-1 bg-primary rounded-full animate-pulse" style={{ animationDelay: '0.2s' }} />
+                            <div className="w-1 h-1 bg-primary rounded-full animate-pulse" style={{ animationDelay: '0.4s' }} />
+                          </div>
+                        </div>
+                        
+                        <div className="text-sm prose prose-sm max-w-none dark:prose-invert prose-p:leading-relaxed prose-pre:p-0">
+                          <MarkdownRenderer content={streamingMessage} />
                         </div>
                       </div>
                     </div>
                   </div>
                 )}
+              </div>
+            </div>
+          </div>
 
-                <div className="space-y-6">
-                  {messages.map((message) => (
-                    <div
-                      key={message.id}
-                      className={cn(
-                        "flex gap-3 lg:gap-4 group",
-                        message.role === "user" ? "justify-end" : "justify-start"
-                      )}
-                    >
-                      {message.role === "assistant" && (
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shrink-0">
-                          <Bot className="w-5 h-5 text-primary-foreground" />
-                        </div>
-                      )}
-                      
-                      <div
-                        className={cn(
-                          "rounded-2xl px-4 py-3 max-w-[85%] relative",
-                          message.role === "user"
-                            ? "bg-primary text-primary-foreground"
-                            : "bg-secondary/80 text-secondary-foreground border border-border/50"
-                        )}
-                      >
-                        {message.role === "assistant" ? (
-                          <div className="prose prose-sm max-w-none dark:prose-invert">
-                            <MarkdownRenderer content={message.content} />
-                          </div>
-                        ) : (
-                          <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
-                        )}
-                        
-                        <div className="flex items-center justify-between gap-3 mt-3 pt-2 border-t border-current/10">
-                          <p className="text-xs opacity-60">
-                            {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </p>
-                          
-                          {message.role === "assistant" && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-6 px-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                              onClick={() => handleCopy(message.content, message.id)}
-                            >
-                              {copiedId === message.id ? (
-                                <>
-                                  <Check className="w-3 h-3 mr-1" />
-                                  <span className="text-xs">Copied</span>
-                                </>
-                              ) : (
-                                <>
-                                  <Copy className="w-3 h-3 mr-1" />
-                                  <span className="text-xs">Copy</span>
-                                </>
-                              )}
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                      
-                      {message.role === "user" && (
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-accent to-accent/70 flex items-center justify-center shrink-0">
-                          <User className="w-5 h-5 text-accent-foreground" />
-                        </div>
-                      )}
-                    </div>
-                  ))}
-
-                  {streamingMessage && (
-                    <div className="flex gap-3 lg:gap-4 justify-start">
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shrink-0 animate-pulse">
-                        <Bot className="w-5 h-5 text-primary-foreground" />
-                      </div>
-                      <div className="rounded-2xl px-4 py-3 max-w-[85%] bg-secondary/80 text-secondary-foreground border border-border/50">
-                        <div className="prose prose-sm max-w-none dark:prose-invert">
-                          <MarkdownRenderer content={streamingMessage} />
-                        </div>
-                        <div className="flex items-center gap-1.5 mt-3 pt-2 border-t border-current/10">
-                          <div className="flex items-center gap-1">
-                            <div className="w-2 h-2 bg-primary rounded-full animate-pulse" />
-                            <div className="w-2 h-2 bg-primary rounded-full animate-pulse" style={{ animationDelay: '0.2s' }} />
-                            <div className="w-2 h-2 bg-primary rounded-full animate-pulse" style={{ animationDelay: '0.4s' }} />
-                          </div>
-                          <span className="text-xs text-muted-foreground ml-2">Generating...</span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  <div ref={messagesEndRef} />
-                </div>
-              </ScrollArea>
-
-              {/* Enhanced Input Area */}
-              <CardContent className="p-4 border-t bg-muted/30">
-                <div className="flex gap-3">
-                  <div className="flex-1 relative">
-                    <Textarea
-                      ref={textareaRef}
-                      value={input}
-                      onChange={(e) => setInput(e.target.value)}
-                      onKeyDown={handleKeyDown}
-                      placeholder="Ask me anything about research, papers, or academic topics..."
-                      disabled={isLoading}
-                      rows={3}
-                      className="resize-none pr-12 bg-background"
-                    />
-                    <div className="absolute bottom-3 right-3 text-xs text-muted-foreground">
-                      {input.length}/2000
-                    </div>
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    {isLoading ? (
-                      <Button
-                        onClick={handleStop}
-                        size="lg"
-                        variant="destructive"
-                        className="shrink-0"
-                      >
-                        <StopCircle className="w-5 h-5" />
-                      </Button>
-                    ) : (
-                      <Button
-                        onClick={() => handleSend()}
-                        disabled={!input.trim() || isLoading}
-                        size="lg"
-                        className="shrink-0"
-                      >
-                        <Send className="w-5 h-5" />
-                      </Button>
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-center justify-between mt-2">
-                  <p className="text-xs text-muted-foreground">
-                    <kbd className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground border">Enter</kbd> to send, 
-                    <kbd className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground border ml-1">Shift + Enter</kbd> for new line
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="text-xs">
-                      <ModelIcon className="w-3 h-3 mr-1" />
-                      {currentModel?.name}
-                    </Badge>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+          {/* Input Area - Fixed Bottom */}
+          <div className="border-t bg-background px-4 py-4">
+            <div className="max-w-3xl mx-auto">
+              <div className="flex gap-2">
+                <Textarea
+                  ref={textareaRef}
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Ask me anything about research, papers, or academic topics..."
+                  disabled={isLoading}
+                  rows={1}
+                  className="resize-none min-h-[44px] max-h-[200px]"
+                />
+                {isLoading ? (
+                  <Button
+                    onClick={handleStop}
+                    size="icon"
+                    variant="ghost"
+                    className="shrink-0 h-[44px] w-[44px]"
+                  >
+                    <StopCircle className="w-5 h-5" />
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={() => handleSend()}
+                    disabled={!input.trim() || isLoading}
+                    size="icon"
+                    className="shrink-0 h-[44px] w-[44px]"
+                  >
+                    <Send className="w-5 h-5" />
+                  </Button>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground mt-2 text-center">
+                Enter to send • Shift+Enter for new line
+              </p>
+            </div>
           </div>
         </div>
       </main>
