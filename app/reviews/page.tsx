@@ -67,8 +67,6 @@ const AI_MODELS: AIModel[] = [
   },
 ]
 
-const puterReady = typeof window !== 'undefined' && !!window.puter;
-
 export default function ReviewsPage() {
   const searchParams = useSearchParams()
   const [researchQuestion, setResearchQuestion] = useState("")
@@ -102,8 +100,6 @@ export default function ReviewsPage() {
   }
 
   const handleGenerate = async () => {
-    console.log("[v0] Generate clicked with model:", selectedModel)
-    
     setIsGenerating(true)
     setError(null)
     setReview("")
@@ -126,7 +122,6 @@ export default function ReviewsPage() {
         throw new Error(errorData.error || 'Failed to generate review')
       }
 
-      console.log("[v0] Response received, starting to stream")
       const reader = response.body?.getReader()
       const decoder = new TextDecoder()
       let fullText = ""
@@ -143,7 +138,6 @@ export default function ReviewsPage() {
         }
       }
 
-      console.log("[v0] Streaming complete, total length:", fullText.length)
       setReview(fullText)
       setStreamingText("")
 
@@ -152,7 +146,6 @@ export default function ReviewsPage() {
         setTitle(shortTitle)
       }
     } catch (err: any) {
-      console.error("[v0] Generation error:", err)
       setError(err.message || "Failed to generate review. Please try again.")
     } finally {
       setIsGenerating(false)
@@ -175,7 +168,6 @@ export default function ReviewsPage() {
       setReview("")
       setError(null)
     } catch (error) {
-      console.error("[v0] Failed to save:", error)
       setError("Failed to save review. Please try again.")
     }
   }
@@ -187,7 +179,6 @@ export default function ReviewsPage() {
       await deleteLiteratureReview(id)
       await loadReviews()
     } catch (error) {
-      console.error("[v0] Failed to delete:", error)
       setError("Failed to delete review. Please try again.")
     }
   }

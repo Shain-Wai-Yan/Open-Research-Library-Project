@@ -1,7 +1,6 @@
 "use client"
 
 import React from "react"
-
 import { useState, useEffect, useRef } from "react"
 import { Sidebar } from "@/components/layout/sidebar"
 import { Header } from "@/components/layout/header"
@@ -20,16 +19,6 @@ import {
 import { Send, Bot, User, Sparkles, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
-declare global {
-  interface Window {
-    puter: {
-      ai: {
-        chat: (message: string, options: { model: string; stream?: boolean }) => Promise<any>
-      }
-    }
-  }
-}
-
 type Message = {
   id: string
   role: "user" | "assistant"
@@ -38,40 +27,19 @@ type Message = {
 }
 
 const AI_MODELS = [
-  { id: "perplexity/sonar", name: "Sonar - Quick Answers", description: "Fast responses" },
-  { id: "perplexity/sonar-pro", name: "Sonar Pro - Professional", description: "Comprehensive analysis" },
-  { id: "perplexity/sonar-deep-research", name: "Sonar Deep - Research", description: "In-depth research" },
-  { id: "perplexity/sonar-reasoning-pro", name: "Sonar Reasoning - Analytical", description: "Complex reasoning" },
+  { id: "deepseek-chat", name: "DeepSeek Chat", description: "Fast responses (free)" },
+  { id: "deepseek-reasoner", name: "DeepSeek Reasoner", description: "Deep analysis (free)" },
+  { id: "groq-llama", name: "Llama 3.3 70B", description: "Professional grade (free)" },
 ]
 
 export default function AssistantPage() {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState("")
-  const [selectedModel, setSelectedModel] = useState("perplexity/sonar-pro")
+  const [selectedModel, setSelectedModel] = useState("deepseek-chat")
   const [isLoading, setIsLoading] = useState(false)
-  const [puterReady, setPuterReady] = useState(false)
   const [streamingMessage, setStreamingMessage] = useState("")
   const scrollAreaRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
-
-  useEffect(() => {
-    const checkPuter = setInterval(() => {
-      if (window.puter) {
-        console.log("[v0] Puter.js ready for assistant")
-        setPuterReady(true)
-        clearInterval(checkPuter)
-      }
-    }, 100)
-
-    const timeout = setTimeout(() => {
-      clearInterval(checkPuter)
-    }, 10000)
-
-    return () => {
-      clearInterval(checkPuter)
-      clearTimeout(timeout)
-    }
-  }, [])
 
   useEffect(() => {
     if (scrollAreaRef.current) {
@@ -83,7 +51,7 @@ export default function AssistantPage() {
   }, [messages, streamingMessage])
 
   const handleSend = async () => {
-    if (!input.trim() || isLoading || !puterReady) return
+    if (!input.trim() || isLoading) return
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -98,28 +66,34 @@ export default function AssistantPage() {
     setStreamingMessage("")
 
     try {
-      const systemPrompt = `You are a research assistant for an academic library platform. Help users with:
-- Finding and understanding research papers
-- Analyzing academic topics
-- Synthesizing information from multiple sources
-- Understanding research methodologies
-- Identifying research gaps
-- Literature review guidance
-
-Provide clear, accurate, and academic responses. Use proper citations when referencing known research areas.`
-
-      const response = await window.puter.ai.chat(
-        `${systemPrompt}\n\nUser: ${userMessage.content}`,
-        {
+      const response = await fetch('/api/assistant', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: userMessage.content,
           model: selectedModel,
-          stream: true,
-        }
-      )
+          history: messages.slice(-10), // Send last 10 messages for context
+        }),
+      })
 
+      if (!response.ok) {
+        throw new Error('Failed to get response')
+      }
+
+      const reader = response.body?.getReader()
+      const decoder = new TextDecoder()
       let fullText = ""
-      for await (const part of response) {
-        if (part?.text) {
-          fullText += part.text
+
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read()
+          
+          if (done) break
+          
+          const chunk = decoder.decode(value, { stream: true })
+          fullText += chunk
           setStreamingMessage(fullText)
         }
       }
@@ -172,17 +146,10 @@ Provide clear, accurate, and academic responses. Use proper citations when refer
                     Get help with papers, research questions, and academic insights
                   </p>
                 </div>
-                {puterReady ? (
-                  <Badge variant="secondary" className="h-fit">
-                    <Sparkles className="w-3 h-3 mr-1" />
-                    AI Ready
-                  </Badge>
-                ) : (
-                  <Badge variant="outline" className="h-fit">
-                    <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                    Loading...
-                  </Badge>
-                )}
+                <Badge variant="secondary" className="h-fit">
+                  <Sparkles className="w-3 h-3 mr-1" />
+                  AI Ready
+                </Badge>
               </div>
 
               {/* Model Selector */}
@@ -293,14 +260,14 @@ Provide clear, accurate, and academic responses. Use proper citations when refer
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    placeholder={puterReady ? "Ask me anything about research..." : "Loading AI..."}
-                    disabled={!puterReady || isLoading}
+                    placeholder="Ask me anything about research..."
+                    disabled={isLoading}
                     rows={3}
                     className="resize-none"
                   />
                   <Button
                     onClick={handleSend}
-                    disabled={!input.trim() || isLoading || !puterReady}
+                    disabled={!input.trim() || isLoading}
                     size="lg"
                     className="shrink-0"
                   >

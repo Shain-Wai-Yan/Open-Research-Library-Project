@@ -40,9 +40,6 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <head>
-        <script src="https://js.puter.com/v2/" async />
-      </head>
       <body className={`font-sans antialiased`}>
         <ClientWrapper>{children}</ClientWrapper>
         <Analytics />
