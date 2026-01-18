@@ -1,179 +1,166 @@
 "use client"
 
-import Link from "next/link"
-import { ExternalLink, BookmarkPlus, FileText } from "lucide-react"
+import { useState, useEffect, useRef } from "react"
+import { Sidebar } from "@/components/layout/sidebar"
+import { Header } from "@/components/layout/header"
+import { SearchBar } from "@/components/search/search-bar"
+import { PaperCard } from "@/components/papers/paper-card"
+import { searchPapers } from "@/lib/api-client"
+import type { SearchFilters } from "@/lib/types"
+import type { SearchResult } from "@/lib/api-services"
 import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import type { Paper } from "@/lib/types"
-import { useState, useEffect } from "react"
-import { getCollections, savePaperToCollection } from "@/lib/api-client"
+import { Loader2, AlertCircle } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { useSearchParams } from "next/navigation"
+import { Suspense } from "react"
 
-interface PaperCardProps {
-  paper: Paper
-  onSave?: (paperId: string) => void
-}
+export default function DashboardPage() {
+  const [searchResult, setSearchResult] = useState<SearchResult>({
+    papers: [],
+    totalResults: 0,
+    currentPage: 1,
+    hasMore: false,
+  })
+  const [filters, setFilters] = useState<SearchFilters>({})
+  const [isSearching, setIsSearching] = useState(false)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
+  const [currentQuery, setCurrentQuery] = useState("")
+  const [error, setError] = useState<string | null>(null)
 
-export function PaperCard({ paper, onSave }: PaperCardProps) {
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [collections, setCollections] = useState<any[]>([])
-  const [selectedCollection, setSelectedCollection] = useState<string>("")
-  const [isSaving, setIsSaving] = useState(false)
+  const prevFiltersRef = useRef<SearchFilters>({})
+
+  const searchParams = useSearchParams()
+  const queryParam = searchParams.get("query")
 
   useEffect(() => {
-    loadCollections()
-  }, [])
+    if (queryParam) {
+      handleSearch(queryParam)
+    }
+  }, [queryParam])
 
-  const loadCollections = async () => {
-    const data = await getCollections()
-    setCollections(data)
-  }
+  useEffect(() => {
+    if (JSON.stringify(filters) !== JSON.stringify(prevFiltersRef.current) && currentQuery) {
+      prevFiltersRef.current = filters
+      handleSearch(currentQuery)
+    }
+  }, [filters])
 
-  const handleSaveClick = () => {
-    setIsDialogOpen(true)
-  }
+  const handleSearch = async (query: string) => {
+    setCurrentQuery(query)
+    setIsSearching(true)
+    setError(null)
 
-  const handleSaveToCollection = async () => {
-    if (!selectedCollection) return
-
-    setIsSaving(true)
     try {
-      console.log("[v0] Saving paper to collection...")
-      await savePaperToCollection(selectedCollection, paper)
-      onSave?.(paper.id)
-      setIsDialogOpen(false)
-      setSelectedCollection("")
-      const successToast = document.createElement("div")
-      successToast.className = "fixed top-4 right-4 bg-green-600 text-white px-4 py-2 rounded shadow-lg z-50"
-      successToast.textContent = "Paper saved successfully!"
-      document.body.appendChild(successToast)
-      setTimeout(() => successToast.remove(), 3000)
-    } catch (error) {
-      console.error("[PaperCard] Failed to save:", error)
-      alert("Failed to save paper. Please try again.")
+      const results = await searchPapers(query, filters, 1, 50)
+      setSearchResult(results)
+    } catch (err) {
+      console.error("[Dashboard] Search error:", err)
+      setError("Search failed. Please try again.")
+      setSearchResult({
+        papers: [],
+        totalResults: 0,
+        currentPage: 1,
+        hasMore: false,
+      })
     } finally {
-      setIsSaving(false)
+      setIsSearching(false)
+    }
+  }
+
+  const handleLoadMore = async () => {
+    if (!searchResult.hasMore || isLoadingMore) return
+
+    setIsLoadingMore(true)
+    setError(null)
+
+    try {
+      const nextPage = searchResult.currentPage + 1
+      const newResults = await searchPapers(currentQuery, filters, nextPage, 50)
+
+      setSearchResult({
+        ...newResults,
+        papers: [...searchResult.papers, ...newResults.papers],
+      })
+    } catch (err) {
+      console.error("[Dashboard] Load more error:", err)
+      setError("Failed to load more results.")
+    } finally {
+      setIsLoadingMore(false)
     }
   }
 
   return (
-    <>
-      <Card className="p-4 md:p-6 border-2 hover:border-primary/50 transition-all duration-300 hover-lift group animate-slide-up w-full">
-        <div className="space-y-3 md:space-y-4 w-full">
-          {/* Header */}
-          <div className="flex items-start justify-between gap-2 md:gap-3 w-full">
-            <div className="flex-1 min-w-0">
-              <Link
-                href={`/paper/${encodeURIComponent(paper.id)}`}
-                className="text-sm md:text-base lg:text-lg font-serif font-semibold text-foreground hover:text-primary transition-colors duration-300 group-hover:text-primary line-clamp-2 md:line-clamp-3 break-words"
-              >
-                {paper.title}
-              </Link>
-              <div className="mt-2 flex flex-wrap items-center gap-1.5 md:gap-2 text-xs md:text-sm text-muted-foreground">
-                <span className="line-clamp-1 break-all">{paper.authors.slice(0, 3).map((a) => a.name).join(", ")}{paper.authors.length > 3 ? "..." : ""}</span>
-                <span className="hidden sm:inline shrink-0">•</span>
-                <span className="shrink-0">{new Date(paper.publicationDate).getFullYear()}</span>
-                <span className="hidden md:inline shrink-0">•</span>
-                <span className="hidden md:inline truncate">{paper.venue}</span>
-              </div>
+    <div className="flex min-h-screen">
+      <Sidebar />
+
+      <main className="flex-1 lg:ml-64">
+        <Header />
+
+        <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto w-full">
+          <div className="mb-6 md:mb-8">
+            <div className="max-w-4xl mx-auto w-full">
+              <SearchBar onSearch={handleSearch} onFilterChange={setFilters} />
             </div>
-
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleSaveClick}
-              className="hover:bg-primary/10 hover:text-primary transition-all duration-300 hover:scale-110 shrink-0 h-8 w-8 md:h-9 md:w-9"
-            >
-              <BookmarkPlus className="w-4 md:w-5 h-4 md:h-5" />
-            </Button>
           </div>
 
-          {/* Abstract */}
-          <p className="text-xs md:text-sm text-muted-foreground line-clamp-2 md:line-clamp-3 break-words">{paper.abstract}</p>
+          {error && (
+            <Alert variant="destructive" className="mb-6">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
 
-          <div className="flex flex-wrap items-center gap-1.5 md:gap-2">
-            <Badge variant="secondary" className="gradient-teal text-white border-0 text-xs whitespace-nowrap">
-              {paper.citationCount} citations
-            </Badge>
-            {paper.methodology && (
-              <Badge variant="outline" className="capitalize border-chart-2 text-chart-2 text-xs whitespace-nowrap">
-                {paper.methodology.replace("-", " ")}
-              </Badge>
-            )}
-            {paper.openAccess && (
-              <Badge variant="outline" className="gradient-emerald text-white border-0 text-xs whitespace-nowrap">
-                Open Access
-              </Badge>
-            )}
-            <Badge variant="outline" className="capitalize border-chart-4 text-chart-4 text-xs whitespace-nowrap">
-              {paper.source}
-            </Badge>
-          </div>
+          {isSearching ? (
+            <div className="space-y-4">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="h-48 rounded-lg bg-muted animate-pulse" />
+              ))}
+            </div>
+          ) : searchResult.papers.length > 0 ? (
+            <div className="space-y-6 w-full">
+              <div className="flex items-center justify-between border-b pb-4">
+                <div>
+                  <p className="text-xs md:text-sm text-muted-foreground">
+                    {searchResult.papers.length.toLocaleString()} of {searchResult.totalResults.toLocaleString()}{" "}
+                    results
+                  </p>
+                </div>
+              </div>
 
-          <div className="flex flex-wrap items-center gap-2 pt-2">
-            {paper.pdfUrl && (
-              <Button
-                variant="outline"
-                size="sm"
-                asChild
-                className="border-2 hover:border-chart-1 hover:text-chart-1 transition-all duration-300 bg-transparent h-8 text-xs"
-              >
-                <a href={paper.pdfUrl} target="_blank" rel="noopener noreferrer">
-                  <FileText className="w-3 md:w-4 h-3 md:h-4 mr-1 md:mr-1.5" />
-                  PDF
-                </a>
-              </Button>
-            )}
-            {paper.doi && (
-              <Button
-                variant="outline"
-                size="sm"
-                asChild
-                className="border-2 hover:border-chart-2 hover:text-chart-2 transition-all duration-300 bg-transparent h-8 text-xs"
-              >
-                <a href={`https://doi.org/${paper.doi}`} target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="w-3 md:w-4 h-3 md:h-4 mr-1 md:mr-1.5" />
-                  DOI
-                </a>
-              </Button>
-            )}
-          </div>
+              <div className="space-y-4 w-full">
+                {searchResult.papers.map((paper) => (
+                  <PaperCard key={paper.id} paper={paper} />
+                ))}
+              </div>
+
+              {searchResult.hasMore && (
+                <div className="flex justify-center pt-8">
+                  <Button
+                    onClick={handleLoadMore}
+                    disabled={isLoadingMore}
+                    size="lg"
+                    variant="outline"
+                    className="min-w-32 md:min-w-48 bg-transparent w-full sm:w-auto"
+                  >
+                    {isLoadingMore ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Loading...
+                      </>
+                    ) : (
+                      "Load more"
+                    )}
+                  </Button>
+                </div>
+              )}
+            </div>
+          ) : null}
         </div>
-      </Card>
-
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="w-[95vw] max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-base md:text-lg">Save Paper to Collection</DialogTitle>
-            <DialogDescription className="text-sm">Choose a collection to save this paper</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 pt-4">
-            {collections.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No collections yet. Create one from the dashboard first.</p>
-            ) : (
-              <>
-                <Select value={selectedCollection} onValueChange={setSelectedCollection}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select a collection" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {collections.map((col) => (
-                      <SelectItem key={col.id} value={col.id!}>
-                        {col.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button onClick={handleSaveToCollection} className="w-full" disabled={!selectedCollection || isSaving}>
-                  {isSaving ? "Saving..." : "Save to Collection"}
-                </Button>
-              </>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
-    </>
+      </main>
+    </div>
   )
+}
+
+export function Loading() {
+  return null
 }
