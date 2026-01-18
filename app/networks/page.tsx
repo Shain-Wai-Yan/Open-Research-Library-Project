@@ -110,6 +110,35 @@ export default function NetworksPage() {
     loadCollections()
   }, [])
 
+  // Keyboard handler: Press Enter to open DOI for selected nodes
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Enter" && selectedNodes.size > 0 && networkData) {
+        // Find selected paper nodes with DOI
+        const selectedPapers = networkData.nodes
+          .filter((node) => selectedNodes.has(node.id) && node.type === "paper" && node.doi)
+
+        if (selectedPapers.length > 0) {
+          selectedPapers.forEach((node) => {
+            const doiUrl = node.doi!.startsWith("http")
+              ? node.doi
+              : `https://doi.org/${node.doi}`
+
+            window.open(doiUrl, "_blank", "noopener,noreferrer")
+          })
+
+          toast({
+            title: `Opened ${selectedPapers.length} DOI link(s)`,
+            description: selectedPapers.length === 1 ? selectedPapers[0].label : `${selectedPapers.length} papers`,
+          })
+        }
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [selectedNodes, networkData, toast])
+
   // Configure d3 forces ONLY when controls change (not on hover or networkData change)
   useEffect(() => {
     if (!graphRef.current) return
@@ -375,16 +404,17 @@ export default function NetworksPage() {
     [selectedNodes, toast]
   )
 
-  // Double-click to open DOI link
+  // Double-click to open DOI
   const handleNodeDoubleClick = useCallback((node: GraphNode) => {
     if (node.type === "paper" && node.doi) {
-      const doiUrl = node.doi.startsWith("http")
-        ? node.doi
-        : `https://doi.org/${node.doi}`
-
+      const doiUrl = node.doi.startsWith("http") ? node.doi : `https://doi.org/${node.doi}`
       window.open(doiUrl, "_blank", "noopener,noreferrer")
+      toast({
+        title: "DOI opened",
+        description: node.label,
+      })
     }
-  }, [])
+  }, [toast])
 
   // Auto-fix nodes after dragging
   const handleNodeDragEnd = useCallback((node: GraphNode) => {
@@ -949,7 +979,7 @@ export default function NetworksPage() {
                                           📊 ${node.citations || 0} citations${node.year ? ` • 📅 ${node.year}` : ""}
                                         </div>
                                         ${selectedNodes.size > 0 ? '<div style="color: #3b82f6; margin-top: 4px; font-size: 10px;">💡 Ctrl+click to multi-select</div>' : ""}
-                                        ${node.doi ? '<div style="color: #3b82f6; margin-top: 4px; font-size: 10px;">🔗 Double-click to open DOI</div>' : ""}
+                                        ${node.doi ? '<div style="color: #3b82f6; margin-top: 4px; font-size: 10px;">🔗 Select and press Enter to open DOI</div>' : ""}
                                       </div>
                                     `
                                   }
@@ -982,7 +1012,6 @@ export default function NetworksPage() {
                                 }}
                                 // Interaction handlers
                                 onNodeClick={handleNodeClick}
-                                onNodeDoubleClick={handleNodeDoubleClick}
                                 onNodeHover={handleNodeHover}
                                 onNodeDragEnd={handleNodeDragEnd}
                                 onLinkHover={handleLinkHover}
@@ -1095,7 +1124,7 @@ export default function NetworksPage() {
                                   <span className="font-semibold">Drag node:</span> Auto-fixes after release
                                 </div>
                                 <div>
-                                  <span className="font-semibold">Double-click paper:</span> Opens DOI link
+                                  <span className="font-semibold">Select and press Enter:</span> Opens DOI link
                                 </div>
                                 <div>
                                   <span className="font-semibold">Hover link:</span> View citation info
