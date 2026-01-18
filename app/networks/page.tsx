@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import dynamic from "next/dynamic"
 import { Sidebar } from "@/components/layout/sidebar"
 import { Header } from "@/components/layout/header"
@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
-import { Network, AlertCircle, Loader2, Maximize, Download, Filter } from "lucide-react"
+import { Network, AlertCircle, Loader2, Maximize, Download, Filter, Focus } from "lucide-react"
 import { getCollections, getSavedPapers, getCitationNetwork } from "@/lib/api-client"
 import type { SavedPaper } from "@/lib/storage-adapter"
 import { useToast } from "@/hooks/use-toast"
@@ -29,13 +29,18 @@ interface GraphNode {
   doi?: string
   fx?: number // Fixed x position for pinning
   fy?: number // Fixed y position for pinning
+  x?: number
+  y?: number
+  neighbors?: Set<string>
+  links?: Set<string>
 }
 
 interface GraphLink {
-  source: string
-  target: string
+  source: string | GraphNode
+  target: string | GraphNode
   type: "authored" | "cited"
   weight?: number
+  citationCount?: number
 }
 
 const generateFieldColor = (field: string): string => {
@@ -74,17 +79,28 @@ const calculateLinkWidth = (linkType: string, sourceNode?: any, targetNode?: any
 
 export default function NetworksPage() {
   const [collections, setCollections] = useState<any[]>([])
-  const [selectedCollection, setSelectedCollection] = useState<string>("")
+  const [selectedCollection, setSelectedCollection] = useState<string>("default-collection")
   const [papers, setPapers] = useState<SavedPaper[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [networkData, setNetworkData] = useState<{ nodes: GraphNode[]; links: GraphLink[] } | null>(null)
   const [isBuilding, setIsBuilding] = useState(false)
 
+  // UI Controls
   const [showAuthors, setShowAuthors] = useState(true)
   const [highlightClusters, setHighlightClusters] = useState(true)
   const [minCitations, setMinCitations] = useState(0)
   const [linkDistance, setLinkDistance] = useState(150)
   const [chargeStrength, setChargeStrength] = useState(-300)
+  const [dagMode, setDagMode] = useState<string>("")
+  const [enableCurvedLinks, setEnableCurvedLinks] = useState(false)
+  const [showLinkLabels, setShowLinkLabels] = useState(false)
+  const [showArrows, setShowArrows] = useState(true)
+
+  // Interaction state
+  const [highlightNodes, setHighlightNodes] = useState(new Set<string>())
+  const [highlightLinks, setHighlightLinks] = useState(new Set<string>())
+  const [hoverNode, setHoverNode] = useState<GraphNode | null>(null)
+  const [selectedNodes, setSelectedNodes] = useState(new Set<string>())
 
   const graphRef = useRef<any>()
   const { toast } = useToast()
@@ -92,6 +108,32 @@ export default function NetworksPage() {
   useEffect(() => {
     loadCollections()
   }, [])
+
+  // Configure d3 forces when graph ref is available
+  useEffect(() => {
+    if (graphRef.current && networkData) {
+      const fg = graphRef.current
+
+      // Configure charge force
+      fg.d3Force("charge")?.strength(chargeStrength)
+
+      // Configure link force
+      fg.d3Force("link")?.distance(linkDistance)
+
+      // Add collision force for better node separation
+      const d3 = require("d3-force-3d")
+      fg.d3Force(
+        "collide",
+        d3
+          .forceCollide()
+          .radius((node: any) => calculateNodeSize(node.citations, node.type) + 8)
+          .strength(0.8)
+      )
+
+      // Reheat simulation to apply changes
+      fg.d3ReheatSimulation()
+    }
+  }, [chargeStrength, linkDistance, networkData])
 
   const loadCollections = async () => {
     try {
@@ -133,6 +175,7 @@ export default function NetworksPage() {
       const nodes: GraphNode[] = []
       const links: GraphLink[] = []
       const authorSet = new Set<string>()
+      const citationCounts = new Map<string, number>()
 
       const filteredPapers = papers.filter((p) => !minCitations || (p.citations || 0) >= minCitations)
 
@@ -148,6 +191,8 @@ export default function NetworksPage() {
           field,
           color,
           doi: paper.doi,
+          neighbors: new Set(),
+          links: new Set(),
         })
 
         // Extract author nodes only if enabled
@@ -163,6 +208,8 @@ export default function NetworksPage() {
                   label: authorName,
                   type: "author",
                   color: "hsl(220, 10%, 50%)",
+                  neighbors: new Set(),
+                  links: new Set(),
                 })
               }
               links.push({
@@ -188,12 +235,19 @@ export default function NetworksPage() {
             citationData.references?.slice(0, 10).forEach((ref: any) => {
               const refInCollection = filteredPapers.find((p) => p.paperId === ref.paperId || p.doi === ref.doi)
               if (refInCollection) {
-                links.push({
-                  source: paper.paperId,
-                  target: refInCollection.paperId,
-                  type: "cited",
-                  weight: 2,
-                })
+                const linkKey = `${paper.paperId}-${refInCollection.paperId}`
+                const currentCount = citationCounts.get(linkKey) || 0
+                citationCounts.set(linkKey, currentCount + 1)
+
+                if (currentCount === 0) {
+                  links.push({
+                    source: paper.paperId,
+                    target: refInCollection.paperId,
+                    type: "cited",
+                    weight: 2,
+                    citationCount: 1,
+                  })
+                }
               }
             })
           } catch (error) {
@@ -201,6 +255,34 @@ export default function NetworksPage() {
           }
         }
       }
+
+      // Update citation counts on links
+      links.forEach((link) => {
+        if (link.type === "cited") {
+          const sourceId = typeof link.source === "string" ? link.source : link.source.id
+          const targetId = typeof link.target === "string" ? link.target : link.target.id
+          const linkKey = `${sourceId}-${targetId}`
+          link.citationCount = citationCounts.get(linkKey) || 1
+        }
+      })
+
+      // Build neighbor and link relationships for highlighting
+      const nodeMap = new Map(nodes.map((node) => [node.id, node]))
+      links.forEach((link) => {
+        const sourceId = typeof link.source === "string" ? link.source : link.source.id
+        const targetId = typeof link.target === "string" ? link.target : link.target.id
+        const linkId = `${sourceId}-${targetId}`
+
+        const sourceNode = nodeMap.get(sourceId)
+        const targetNode = nodeMap.get(targetId)
+
+        if (sourceNode && targetNode) {
+          sourceNode.neighbors?.add(targetId)
+          targetNode.neighbors?.add(sourceId)
+          sourceNode.links?.add(linkId)
+          targetNode.links?.add(linkId)
+        }
+      })
 
       setNetworkData({ nodes, links })
       toast({
@@ -219,13 +301,99 @@ export default function NetworksPage() {
     }
   }
 
+  // Hover highlighting handler
+  const handleNodeHover = useCallback(
+    (node: GraphNode | null) => {
+      const newHighlightNodes = new Set<string>()
+      const newHighlightLinks = new Set<string>()
+
+      if (node) {
+        newHighlightNodes.add(node.id)
+        node.neighbors?.forEach((neighborId) => newHighlightNodes.add(neighborId))
+        node.links?.forEach((linkId) => newHighlightLinks.add(linkId))
+      }
+
+      setHighlightNodes(newHighlightNodes)
+      setHighlightLinks(newHighlightLinks)
+      setHoverNode(node)
+    },
+    []
+  )
+
+  // Click to focus on node
+  const handleNodeClick = useCallback(
+    (node: GraphNode, event: MouseEvent) => {
+      // Handle multi-select with Ctrl/Cmd key
+      if (event.ctrlKey || event.metaKey) {
+        const newSelected = new Set(selectedNodes)
+        if (newSelected.has(node.id)) {
+          newSelected.delete(node.id)
+        } else {
+          newSelected.add(node.id)
+        }
+        setSelectedNodes(newSelected)
+        toast({
+          title: `${newSelected.size} nodes selected`,
+          description: "Ctrl+click to add/remove nodes from selection",
+        })
+      } else {
+        // Center on clicked node
+        if (graphRef.current) {
+          const distance = 200
+          const distRatio = 1 + distance / Math.hypot(node.x || 0, node.y || 0)
+
+          graphRef.current.centerAt(node.x, node.y, 1000)
+          graphRef.current.zoom(2.5, 1000)
+        }
+        setSelectedNodes(new Set([node.id]))
+      }
+    },
+    [selectedNodes, toast]
+  )
+
+  // Auto-fix nodes after dragging
+  const handleNodeDragEnd = useCallback((node: GraphNode) => {
+    if (node.x !== undefined && node.y !== undefined) {
+      node.fx = node.x
+      node.fy = node.y
+    }
+  }, [])
+
+  // Link hover handler
+  const handleLinkHover = useCallback((link: GraphLink | null) => {
+    const newHighlightLinks = new Set<string>()
+    const newHighlightNodes = new Set<string>()
+
+    if (link) {
+      const sourceId = typeof link.source === "string" ? link.source : link.source.id
+      const targetId = typeof link.target === "string" ? link.target : link.target.id
+      const linkId = `${sourceId}-${targetId}`
+
+      newHighlightLinks.add(linkId)
+      newHighlightNodes.add(sourceId)
+      newHighlightNodes.add(targetId)
+    }
+
+    setHighlightLinks(newHighlightLinks)
+    setHighlightNodes(newHighlightNodes)
+  }, [])
+
   const paintNode = (node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
     const size = calculateNodeSize(node.citations, node.type)
     const currentYear = new Date().getFullYear()
     const isRecent = node.year && node.year >= currentYear - 2
+    const isHighlighted = highlightNodes.has(node.id)
+    const isSelected = selectedNodes.has(node.id)
+    const isDimmed = highlightNodes.size > 0 && !isHighlighted
 
-    // Add glow for recent papers
-    if (isRecent && node.type === "paper" && highlightClusters) {
+    // Dimmed style for non-highlighted nodes when hovering
+    const opacity = isDimmed ? 0.2 : 1.0
+
+    // Add glow for highlighted, selected, or recent papers
+    if (isHighlighted || isSelected) {
+      ctx.shadowBlur = 20
+      ctx.shadowColor = node.color || "#3b82f6"
+    } else if (isRecent && node.type === "paper" && highlightClusters) {
       ctx.shadowBlur = 15
       ctx.shadowColor = node.color || "#3b82f6"
     } else {
@@ -235,28 +403,124 @@ export default function NetworksPage() {
     // Draw node
     ctx.beginPath()
     ctx.arc(node.x, node.y, size, 0, 2 * Math.PI)
+    ctx.globalAlpha = opacity
     ctx.fillStyle = node.color || "#94a3b8"
     ctx.fill()
 
-    // Border
-    ctx.strokeStyle = isRecent ? "#fff" : "rgba(255,255,255,0.6)"
-    ctx.lineWidth = isRecent ? 2.5 : 1.5
+    // Border - thicker for highlighted/selected
+    if (isSelected) {
+      ctx.strokeStyle = "#fff"
+      ctx.lineWidth = 3.5
+    } else if (isHighlighted) {
+      ctx.strokeStyle = "#fff"
+      ctx.lineWidth = 2.5
+    } else {
+      ctx.strokeStyle = isRecent ? "#fff" : "rgba(255,255,255,0.6)"
+      ctx.lineWidth = isRecent ? 2.5 : 1.5
+    }
     ctx.stroke()
     ctx.shadowBlur = 0
+    ctx.globalAlpha = 1.0
 
-    // Labels for important nodes
-    if (size > 12 && globalScale > 1.2) {
+    // Labels for important or highlighted nodes
+    if ((size > 12 || isHighlighted || isSelected) && globalScale > 1.2) {
+      ctx.globalAlpha = isDimmed ? 0.4 : 1.0
       ctx.font = `${Math.max(3, size / 3)}px Sans-Serif`
       ctx.textAlign = "center"
       ctx.textBaseline = "middle"
       ctx.fillStyle = "#fff"
       const maxChars = Math.floor(size / 1.5)
       ctx.fillText(node.label.substring(0, maxChars), node.x, node.y)
+      ctx.globalAlpha = 1.0
     }
   }
 
-  const exportNetwork = () => {
-    if (graphRef.current) {
+  const paintLink = useCallback(
+    (link: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
+      const sourceId = typeof link.source === "object" ? link.source.id : link.source
+      const targetId = typeof link.target === "object" ? link.target.id : link.target
+      const linkId = `${sourceId}-${targetId}`
+      const isHighlighted = highlightLinks.has(linkId)
+      const isDimmed = highlightLinks.size > 0 && !isHighlighted
+
+      // Get source and target positions
+      const start = link.source
+      const end = link.target
+
+      if (!start || !end) return
+
+      // Link styling based on type and highlight
+      const baseWidth = calculateLinkWidth(link.type, start, end)
+      const width = isHighlighted ? baseWidth * 2 : baseWidth
+      const opacity = isDimmed ? 0.1 : link.type === "cited" ? 0.5 : 0.3
+
+      ctx.globalAlpha = opacity
+      ctx.strokeStyle = link.type === "cited" ? "#60a5fa" : "#94a3b8"
+      ctx.lineWidth = width
+
+      // Draw link
+      ctx.beginPath()
+      ctx.moveTo(start.x, start.y)
+      ctx.lineTo(end.x, end.y)
+      ctx.stroke()
+      ctx.globalAlpha = 1.0
+
+      // Draw arrow for citation links if enabled
+      if (showArrows && link.type === "cited") {
+        const arrowLength = 8
+        const arrowWidth = 5
+        const angle = Math.atan2(end.y - start.y, end.x - start.x)
+
+        // Position arrow at 70% along the link
+        const arrowPos = 0.7
+        const arrowX = start.x + (end.x - start.x) * arrowPos
+        const arrowY = start.y + (end.y - start.y) * arrowPos
+
+        ctx.save()
+        ctx.translate(arrowX, arrowY)
+        ctx.rotate(angle)
+
+        ctx.globalAlpha = opacity
+        ctx.fillStyle = "#60a5fa"
+        ctx.beginPath()
+        ctx.moveTo(0, 0)
+        ctx.lineTo(-arrowLength, arrowWidth)
+        ctx.lineTo(-arrowLength, -arrowWidth)
+        ctx.closePath()
+        ctx.fill()
+        ctx.globalAlpha = 1.0
+
+        ctx.restore()
+      }
+
+      // Draw link label if enabled and highlighted
+      if (showLinkLabels && isHighlighted && link.citationCount && link.citationCount > 1) {
+        const midX = (start.x + end.x) / 2
+        const midY = (start.y + end.y) / 2
+
+        ctx.font = "10px Sans-Serif"
+        ctx.textAlign = "center"
+        ctx.textBaseline = "middle"
+
+        // Background for label
+        const label = `${link.citationCount}x`
+        const metrics = ctx.measureText(label)
+        const padding = 3
+
+        ctx.fillStyle = "rgba(0, 0, 0, 0.7)"
+        ctx.fillRect(midX - metrics.width / 2 - padding, midY - 6, metrics.width + padding * 2, 12)
+
+        ctx.fillStyle = "#fff"
+        ctx.fillText(label, midX, midY)
+      }
+    },
+    [highlightLinks, showArrows, showLinkLabels]
+  )
+
+  const exportNetwork = (format: "png" | "json" = "png") => {
+    if (!graphRef.current || !networkData) return
+
+    if (format === "png") {
       const canvas = graphRef.current.renderer().domElement
       const link = document.createElement("a")
       link.download = `network-${selectedCollection}-${Date.now()}.png`
@@ -265,6 +529,43 @@ export default function NetworksPage() {
       toast({
         title: "Network exported",
         description: "PNG image downloaded successfully",
+      })
+    } else {
+      // Export as JSON with node positions
+      const exportData = {
+        nodes: networkData.nodes.map((node) => ({
+          id: node.id,
+          label: node.label,
+          type: node.type,
+          citations: node.citations,
+          year: node.year,
+          field: node.field,
+          color: node.color,
+          x: node.x,
+          y: node.y,
+          fx: node.fx,
+          fy: node.fy,
+        })),
+        links: networkData.links.map((link) => ({
+          source: typeof link.source === "object" ? link.source.id : link.source,
+          target: typeof link.target === "object" ? link.target.id : link.target,
+          type: link.type,
+          weight: link.weight,
+          citationCount: link.citationCount,
+        })),
+      }
+
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement("a")
+      link.download = `network-data-${selectedCollection}-${Date.now()}.json`
+      link.href = url
+      link.click()
+      URL.revokeObjectURL(url)
+
+      toast({
+        title: "Network data exported",
+        description: "JSON data with node positions downloaded",
       })
     }
   }
@@ -339,7 +640,7 @@ export default function NetworksPage() {
                         </SelectTrigger>
                         <SelectContent>
                           {collections.map((col) => (
-                            <SelectItem key={col.id} value={col.id!}>
+                            <SelectItem key={col.id} value={col.id || "default-collection"}>
                               {col.name}
                             </SelectItem>
                           ))}
@@ -410,6 +711,65 @@ export default function NetworksPage() {
                               className="w-full"
                             />
                           </div>
+
+                          <div className="border-t pt-4 space-y-4">
+                            <div className="flex items-center gap-2">
+                              <Filter className="w-4 h-4 text-muted-foreground" />
+                              <h4 className="font-medium text-sm">Advanced Features</h4>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div className="flex items-center justify-between">
+                                <Label htmlFor="show-arrows" className="text-sm">
+                                  Directional Arrows
+                                </Label>
+                                <Switch id="show-arrows" checked={showArrows} onCheckedChange={setShowArrows} />
+                              </div>
+
+                              <div className="flex items-center justify-between">
+                                <Label htmlFor="curved-links" className="text-sm">
+                                  Curved Links
+                                </Label>
+                                <Switch
+                                  id="curved-links"
+                                  checked={enableCurvedLinks}
+                                  onCheckedChange={setEnableCurvedLinks}
+                                />
+                              </div>
+
+                              <div className="flex items-center justify-between">
+                                <Label htmlFor="link-labels" className="text-sm">
+                                  Link Labels
+                                </Label>
+                                <Switch
+                                  id="link-labels"
+                                  checked={showLinkLabels}
+                                  onCheckedChange={setShowLinkLabels}
+                                />
+                              </div>
+                            </div>
+
+                            <div className="space-y-2">
+                              <Label className="text-sm">Layout Mode</Label>
+                              <Select value={dagMode} onValueChange={setDagMode}>
+                                <SelectTrigger className="w-full">
+                                  <SelectValue placeholder="Force-directed (default)" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="default">Force-directed (default)</SelectItem>
+                                  <SelectItem value="td">Top-Down (DAG)</SelectItem>
+                                  <SelectItem value="bu">Bottom-Up (DAG)</SelectItem>
+                                  <SelectItem value="lr">Left-Right (DAG)</SelectItem>
+                                  <SelectItem value="rl">Right-Left (DAG)</SelectItem>
+                                  <SelectItem value="radialout">Radial Outward</SelectItem>
+                                  <SelectItem value="radialin">Radial Inward</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <p className="text-xs text-muted-foreground">
+                                DAG modes work best for chronological citation networks
+                              </p>
+                            </div>
+                          </div>
                         </div>
 
                         <div className="flex gap-2">
@@ -428,10 +788,16 @@ export default function NetworksPage() {
                           </Button>
 
                           {networkData && (
-                            <Button variant="outline" onClick={exportNetwork}>
-                              <Download className="w-4 h-4 mr-2" />
-                              Export PNG
-                            </Button>
+                            <>
+                              <Button variant="outline" onClick={() => exportNetwork("png")}>
+                                <Download className="w-4 h-4 mr-2" />
+                                Export PNG
+                              </Button>
+                              <Button variant="outline" onClick={() => exportNetwork("json")}>
+                                <Download className="w-4 h-4 mr-2" />
+                                Export Data
+                              </Button>
+                            </>
                           )}
                         </div>
                       </>
@@ -462,6 +828,20 @@ export default function NetworksPage() {
                               <div className="flex items-center justify-between mb-4">
                                 <h3 className="text-lg font-semibold">Citation Network Visualization</h3>
                                 <div className="flex gap-2">
+                                  {selectedNodes.size > 0 && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => {
+                                        setSelectedNodes(new Set())
+                                        setHighlightNodes(new Set())
+                                        setHighlightLinks(new Set())
+                                      }}
+                                    >
+                                      <Focus className="w-4 h-4 mr-1" />
+                                      Clear ({selectedNodes.size})
+                                    </Button>
+                                  )}
                                   <Button size="sm" variant="outline" onClick={() => graphRef.current?.zoomToFit(400)}>
                                     <Maximize className="w-4 h-4" />
                                   </Button>
@@ -515,6 +895,7 @@ export default function NetworksPage() {
                                   nodes: networkData.nodes,
                                   links: networkData.links,
                                 }}
+                                // Node rendering
                                 nodeCanvasObject={paintNode}
                                 nodePointerAreaPaint={(node: any, color: string, ctx: CanvasRenderingContext2D) => {
                                   const size = calculateNodeSize(node.citations, node.type)
@@ -532,44 +913,72 @@ export default function NetworksPage() {
                                         <div style="color: #a3a3a3; font-size: 11px;">
                                           📊 ${node.citations || 0} citations${node.year ? ` • 📅 ${node.year}` : ""}
                                         </div>
+                                        ${selectedNodes.size > 0 ? '<div style="color: #3b82f6; margin-top: 4px; font-size: 10px;">💡 Ctrl+click to multi-select</div>' : ""}
                                         ${node.doi ? '<div style="color: #3b82f6; margin-top: 4px; font-size: 10px;">🔗 Click to open DOI</div>' : ""}
                                       </div>
                                     `
                                   }
                                   return `<div style="background: rgba(0,0,0,0.85); color: white; padding: 6px 10px; border-radius: 6px; font-size: 11px;">${node.label}</div>`
                                 }}
+                                // Link rendering
+                                linkCanvasObject={paintLink}
+                                linkCanvasObjectMode={() => "replace"}
                                 linkWidth={(link: any) => {
-                                  const sourceNode = networkData.nodes.find((n) => n.id === link.source)
-                                  const targetNode = networkData.nodes.find((n) => n.id === link.target)
+                                  const sourceNode =
+                                    typeof link.source === "object"
+                                      ? link.source
+                                      : networkData.nodes.find((n) => n.id === link.source)
+                                  const targetNode =
+                                    typeof link.target === "object"
+                                      ? link.target
+                                      : networkData.nodes.find((n) => n.id === link.target)
                                   return calculateLinkWidth(link.type, sourceNode, targetNode)
                                 }}
                                 linkColor={(link: any) => (link.type === "cited" ? "#3b82f6" : "#d1d5db")}
-                                linkDirectionalParticles={(link: any) => (link.type === "cited" ? 3 : 0)}
+                                linkCurvature={enableCurvedLinks ? 0.2 : 0}
+                                linkDirectionalParticles={(link: any) => (link.type === "cited" && !showArrows ? 2 : 0)}
                                 linkDirectionalParticleWidth={2.5}
                                 linkDirectionalParticleSpeed={0.005}
-                                onNodeClick={(node: any) => {
-                                  if (node.type === "paper" && node.doi) {
-                                    window.open(`https://doi.org/${node.doi}`, "_blank")
+                                linkLabel={(link: any) => {
+                                  if (link.citationCount && link.citationCount > 1) {
+                                    return `Cited ${link.citationCount} times`
                                   }
+                                  return ""
                                 }}
+                                // Interaction handlers
+                                onNodeClick={handleNodeClick}
+                                onNodeHover={handleNodeHover}
+                                onNodeDragEnd={handleNodeDragEnd}
+                                onLinkHover={handleLinkHover}
                                 onNodeRightClick={(node: any) => {
                                   // Pin/unpin node on right-click
                                   if (node.fx === undefined) {
                                     node.fx = node.x
                                     node.fy = node.y
+                                    toast({
+                                      title: "Node pinned",
+                                      description: "Right-click again to unpin",
+                                    })
                                   } else {
                                     node.fx = undefined
                                     node.fy = undefined
+                                    toast({
+                                      title: "Node unpinned",
+                                      description: "Node will respond to forces",
+                                    })
                                   }
                                 }}
+                                onBackgroundClick={() => {
+                                  setSelectedNodes(new Set())
+                                  setHighlightNodes(new Set())
+                                  setHighlightLinks(new Set())
+                                }}
+                                // Force engine configuration
+                                dagMode={dagMode || undefined}
+                                dagLevelDistance={80}
                                 d3AlphaDecay={0.02}
                                 d3VelocityDecay={0.3}
-                                d3Force={{
-                                  charge: { strength: chargeStrength },
-                                  link: { distance: linkDistance },
-                                  collide: { radius: (node: any) => calculateNodeSize(node.citations, node.type) + 5 },
-                                }}
-                                warmupTicks={100}
+                                warmupTicks={120}
                                 cooldownTicks={1000}
                                 width={1100}
                                 height={700}
@@ -630,14 +1039,40 @@ export default function NetworksPage() {
                             </div>
 
                             <div className="mt-4 p-3 bg-blue-50 rounded-lg text-xs text-blue-900">
-                              <p className="font-medium mb-1">💡 Interaction Tips:</p>
-                              <ul className="list-disc list-inside space-y-0.5 ml-2">
-                                <li>Click paper nodes to open DOI</li>
-                                <li>Right-click nodes to pin/unpin position</li>
-                                <li>Scroll to zoom, drag to pan</li>
-                                <li>Hover for detailed information</li>
-                                <li>Drag nodes to rearrange layout</li>
-                              </ul>
+                              <p className="font-medium mb-2">💡 Interaction Guide:</p>
+                              <div className="grid grid-cols-2 gap-x-6 gap-y-1">
+                                <div>
+                                  <span className="font-semibold">Click node:</span> Focus & center view
+                                </div>
+                                <div>
+                                  <span className="font-semibold">Ctrl+click:</span> Multi-select nodes
+                                </div>
+                                <div>
+                                  <span className="font-semibold">Hover node:</span> Highlight connections
+                                </div>
+                                <div>
+                                  <span className="font-semibold">Right-click:</span> Pin/unpin position
+                                </div>
+                                <div>
+                                  <span className="font-semibold">Drag node:</span> Auto-fixes after release
+                                </div>
+                                <div>
+                                  <span className="font-semibold">Paper click:</span> Opens DOI link
+                                </div>
+                                <div>
+                                  <span className="font-semibold">Hover link:</span> View citation info
+                                </div>
+                                <div>
+                                  <span className="font-semibold">Background click:</span> Clear selection
+                                </div>
+                              </div>
+                              {selectedNodes.size > 0 && (
+                                <div className="mt-2 pt-2 border-t border-blue-200">
+                                  <span className="font-semibold text-blue-700">
+                                    {selectedNodes.size} node{selectedNodes.size > 1 ? "s" : ""} selected
+                                  </span>
+                                </div>
+                              )}
                             </div>
                           </Card>
                         )}
