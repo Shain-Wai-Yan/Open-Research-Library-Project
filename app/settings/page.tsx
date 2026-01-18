@@ -13,14 +13,14 @@ export default function SettingsPage() {
     <div className="flex min-h-screen">
       <Sidebar />
 
-      <main className="flex-1 ml-64">
+      <main className="flex-1 lg:ml-64">
         <Header />
 
-        <div className="p-8">
+        <div className="p-4 md:p-6 lg:p-8">
           <div className="max-w-3xl mx-auto">
-            <div className="mb-8">
-              <h1 className="text-3xl font-serif font-bold text-foreground mb-2">Settings</h1>
-              <p className="text-muted-foreground">Configure your research environment</p>
+            <div className="mb-6 md:mb-8">
+              <h1 className="text-2xl md:text-3xl font-serif font-bold text-foreground mb-2">Settings</h1>
+              <p className="text-sm md:text-base text-muted-foreground">Configure your research environment</p>
             </div>
 
             <div className="space-y-6">

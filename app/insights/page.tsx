@@ -109,68 +109,74 @@ export default function InsightsPage() {
     <div className="flex min-h-screen">
       <Sidebar />
 
-      <main className="flex-1 ml-64">
+      <main className="flex-1 lg:ml-64">
         <Header />
 
-        <div className="p-8">
+        <div className="p-4 md:p-6 lg:p-8">
           <div className="max-w-7xl mx-auto">
-            <div className="mb-8 flex items-center justify-between">
-              <div>
-                <h1 className="text-3xl font-serif font-bold text-foreground mb-2">Atomic Insights</h1>
-                <p className="text-muted-foreground">Your personal knowledge graph of research insights</p>
+            <div className="mb-6 md:mb-8 flex flex-col gap-4">
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <h1 className="text-2xl md:text-3xl font-serif font-bold text-foreground mb-2">Atomic Insights</h1>
+                  <p className="text-sm md:text-base text-muted-foreground leading-relaxed">
+                    Your personal knowledge graph of research insights
+                  </p>
+                </div>
+                <Button onClick={() => setIsEditorOpen(true)} className="w-full sm:w-auto shrink-0">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Insight
+                </Button>
               </div>
-              <Button onClick={() => setIsEditorOpen(true)}>
-                <Plus className="w-4 h-4 mr-2" />
-                Add Insight
-              </Button>
             </div>
 
             {isLoading ? (
-              <Card className="p-16 text-center">
-                <p className="text-muted-foreground">Loading insights...</p>
+              <Card className="p-8 md:p-16 text-center">
+                <p className="text-sm md:text-base text-muted-foreground">Loading insights...</p>
               </Card>
             ) : insights.length === 0 ? (
-              <Card className="p-16 text-center">
-                <Lightbulb className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
-                <h3 className="text-lg font-semibold mb-2">No insights yet</h3>
-                <p className="text-muted-foreground mb-4">Start capturing atomic insights from papers you read</p>
-                <Button onClick={() => setIsEditorOpen(true)}>
+              <Card className="p-8 md:p-16 text-center">
+                <Lightbulb className="w-12 md:w-16 h-12 md:h-16 mx-auto mb-4 text-muted-foreground" />
+                <h3 className="text-base md:text-lg font-semibold mb-2">No insights yet</h3>
+                <p className="text-sm md:text-base text-muted-foreground mb-4 max-w-md mx-auto">
+                  Start capturing atomic insights from papers you read
+                </p>
+                <Button onClick={() => setIsEditorOpen(true)} className="w-full sm:w-auto">
                   <Plus className="w-4 h-4 mr-2" />
                   Create Your First Insight
                 </Button>
               </Card>
             ) : (
-              <div className="space-y-8">
+              <div className="space-y-6 md:space-y-8">
                 {Object.entries(groupedInsights).map(([type, typeInsights]) => {
                   const Icon = INSIGHT_ICONS[type as keyof typeof INSIGHT_ICONS]
                   return (
                     <div key={type}>
-                      <div className="flex items-center gap-2 mb-4">
-                        <Icon className="w-5 h-5 text-accent" />
-                        <h2 className="text-xl font-semibold capitalize">
+                      <div className="flex items-center gap-2 mb-3 md:mb-4">
+                        <Icon className="w-4 md:w-5 h-4 md:h-5 text-accent shrink-0" />
+                        <h2 className="text-lg md:text-xl font-semibold capitalize">
                           {type === "gap" ? "Research Gaps" : type + "s"}
                         </h2>
-                        <Badge variant="secondary">{typeInsights.length}</Badge>
+                        <Badge variant="secondary" className="text-xs">{typeInsights.length}</Badge>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                         {typeInsights.map((insight) => (
                           <Card
                             key={insight.id}
-                            className={`p-4 border-l-4 ${INSIGHT_COLORS[type as keyof typeof INSIGHT_COLORS]}`}
+                            className={`p-3 md:p-4 border-l-4 ${INSIGHT_COLORS[type as keyof typeof INSIGHT_COLORS]}`}
                           >
-                            <div className="flex items-start justify-between gap-3">
-                              <p className="text-sm leading-relaxed flex-1">{insight.content}</p>
+                            <div className="flex items-start justify-between gap-2 md:gap-3">
+                              <p className="text-xs md:text-sm leading-relaxed flex-1 break-words">{insight.content}</p>
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive shrink-0"
+                                className="h-7 w-7 md:h-8 md:w-8 p-0 text-muted-foreground hover:text-destructive shrink-0"
                                 onClick={() => setDeleteId(insight.id)}
                               >
-                                <Trash2 className="w-4 h-4" />
+                                <Trash2 className="w-3.5 md:w-4 h-3.5 md:h-4" />
                               </Button>
                             </div>
-                            <div className="mt-3 flex items-center justify-between">
+                            <div className="mt-2 md:mt-3 flex flex-wrap items-center justify-between gap-2">
                               <div className="text-xs text-muted-foreground">
                                 {new Date(insight.createdAt).toLocaleDateString()}
                               </div>

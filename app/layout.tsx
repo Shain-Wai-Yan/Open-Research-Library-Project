@@ -3,6 +3,7 @@ import type { Metadata } from "next"
 import { Geist, Geist_Mono, Crimson_Pro } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import { ClientWrapper } from "@/components/auth/client-wrapper"
+import { SidebarProvider } from "@/components/layout/sidebar-context"
 import "./globals.css"
 
 const _geist = Geist({ subsets: ["latin"] })
@@ -41,7 +42,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`font-sans antialiased`}>
-        <ClientWrapper>{children}</ClientWrapper>
+        <SidebarProvider>
+          <ClientWrapper>{children}</ClientWrapper>
+        </SidebarProvider>
         <Analytics />
       </body>
     </html>

@@ -82,11 +82,11 @@ export default function DashboardPage() {
     <div className="flex min-h-screen">
       <Sidebar />
 
-      <main className="flex-1 ml-64">
+      <main className="flex-1 lg:ml-64">
         <Header />
 
-        <div className="p-8 max-w-7xl mx-auto">
-          <div className="mb-8">
+        <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
+          <div className="mb-6 md:mb-8">
             <div className="max-w-4xl mx-auto">
               <SearchBar onSearch={handleSearch} onFilterChange={setFilters} />
             </div>

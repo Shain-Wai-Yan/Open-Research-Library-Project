@@ -338,3 +338,16 @@
 .hover-glow:hover {
   box-shadow: 0 0 20px oklch(0.58 0.18 155 / 0.5);
 }
+
+/* Responsive layout adjustments for sidebar */
+@media (max-width: 1023px) {
+  /* Remove left margin on mobile since sidebar is hidden/overlay */
+  .ml-64 {
+    margin-left: 0 !important;
+  }
+  
+  /* Ensure main content takes full width on mobile */
+  main.ml-64 {
+    margin-left: 0 !important;
+  }
+}

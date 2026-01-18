@@ -60,23 +60,23 @@ export function PaperCard({ paper, onSave }: PaperCardProps) {
 
   return (
     <>
-      <Card className="p-6 border-2 hover:border-primary/50 transition-all duration-300 hover-lift group animate-slide-up">
-        <div className="space-y-4">
+      <Card className="p-4 md:p-6 border-2 hover:border-primary/50 transition-all duration-300 hover-lift group animate-slide-up">
+        <div className="space-y-3 md:space-y-4">
           {/* Header */}
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex-1">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex-1 min-w-0">
               <Link
                 href={`/paper/${encodeURIComponent(paper.id)}`}
-                className="text-lg font-serif font-semibold text-foreground hover:text-primary transition-colors duration-300 group-hover:text-primary"
+                className="text-base md:text-lg font-serif font-semibold text-foreground hover:text-primary transition-colors duration-300 group-hover:text-primary line-clamp-3 md:line-clamp-none"
               >
                 {paper.title}
               </Link>
-              <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
-                <span>{paper.authors.map((a) => a.name).join(", ")}</span>
-                <span>•</span>
+              <div className="mt-2 flex flex-wrap items-center gap-1.5 md:gap-2 text-xs md:text-sm text-muted-foreground">
+                <span className="line-clamp-1">{paper.authors.slice(0, 3).map((a) => a.name).join(", ")}{paper.authors.length > 3 ? "..." : ""}</span>
+                <span className="hidden sm:inline">•</span>
                 <span>{new Date(paper.publicationDate).getFullYear()}</span>
-                <span>•</span>
-                <span>{paper.venue}</span>
+                <span className="hidden sm:inline">•</span>
+                <span className="hidden sm:inline truncate">{paper.venue}</span>
               </div>
             </div>
 
@@ -84,44 +84,44 @@ export function PaperCard({ paper, onSave }: PaperCardProps) {
               variant="ghost"
               size="icon"
               onClick={handleSaveClick}
-              className="hover:bg-primary/10 hover:text-primary transition-all duration-300 hover:scale-110"
+              className="hover:bg-primary/10 hover:text-primary transition-all duration-300 hover:scale-110 shrink-0 h-8 w-8 md:h-9 md:w-9"
             >
-              <BookmarkPlus className="w-5 h-5" />
+              <BookmarkPlus className="w-4 md:w-5 h-4 md:h-5" />
             </Button>
           </div>
 
           {/* Abstract */}
-          <p className="text-sm text-muted-foreground line-clamp-3">{paper.abstract}</p>
+          <p className="text-xs md:text-sm text-muted-foreground line-clamp-2 md:line-clamp-3">{paper.abstract}</p>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="secondary" className="gradient-teal text-white border-0">
+          <div className="flex flex-wrap items-center gap-1.5 md:gap-2">
+            <Badge variant="secondary" className="gradient-teal text-white border-0 text-xs">
               {paper.citationCount} citations
             </Badge>
             {paper.methodology && (
-              <Badge variant="outline" className="capitalize border-chart-2 text-chart-2">
+              <Badge variant="outline" className="capitalize border-chart-2 text-chart-2 text-xs">
                 {paper.methodology.replace("-", " ")}
               </Badge>
             )}
             {paper.openAccess && (
-              <Badge variant="outline" className="gradient-emerald text-white border-0">
+              <Badge variant="outline" className="gradient-emerald text-white border-0 text-xs">
                 Open Access
               </Badge>
             )}
-            <Badge variant="outline" className="capitalize border-chart-4 text-chart-4">
+            <Badge variant="outline" className="capitalize border-chart-4 text-chart-4 text-xs">
               {paper.source}
             </Badge>
           </div>
 
-          <div className="flex items-center gap-2 pt-2">
+          <div className="flex flex-wrap items-center gap-2 pt-2">
             {paper.pdfUrl && (
               <Button
                 variant="outline"
                 size="sm"
                 asChild
-                className="border-2 hover:border-chart-1 hover:text-chart-1 transition-all duration-300 bg-transparent"
+                className="border-2 hover:border-chart-1 hover:text-chart-1 transition-all duration-300 bg-transparent h-8 text-xs"
               >
                 <a href={paper.pdfUrl} target="_blank" rel="noopener noreferrer">
-                  <FileText className="w-4 h-4 mr-2" />
+                  <FileText className="w-3 md:w-4 h-3 md:h-4 mr-1.5" />
                   PDF
                 </a>
               </Button>
@@ -131,10 +131,10 @@ export function PaperCard({ paper, onSave }: PaperCardProps) {
                 variant="outline"
                 size="sm"
                 asChild
-                className="border-2 hover:border-chart-2 hover:text-chart-2 transition-all duration-300 bg-transparent"
+                className="border-2 hover:border-chart-2 hover:text-chart-2 transition-all duration-300 bg-transparent h-8 text-xs"
               >
                 <a href={`https://doi.org/${paper.doi}`} target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="w-4 h-4 mr-2" />
+                  <ExternalLink className="w-3 md:w-4 h-3 md:h-4 mr-1.5" />
                   DOI
                 </a>
               </Button>

@@ -25,14 +25,14 @@ export default function LibraryPage() {
     <div className="flex min-h-screen">
       <Sidebar />
 
-      <main className="flex-1 ml-64">
+      <main className="flex-1 lg:ml-64">
         <Header />
 
-        <div className="p-8">
+        <div className="p-4 md:p-6 lg:p-8">
           <div className="max-w-7xl mx-auto">
-            <div className="mb-8">
-              <h1 className="text-3xl font-serif font-bold text-foreground mb-2">Research Library</h1>
-              <p className="text-muted-foreground">Organize and manage your academic papers</p>
+            <div className="mb-6 md:mb-8">
+              <h1 className="text-2xl md:text-3xl font-serif font-bold text-foreground mb-2">Research Library</h1>
+              <p className="text-sm md:text-base text-muted-foreground">Organize and manage your academic papers</p>
             </div>
 
             <Tabs defaultValue="collections" className="space-y-6">
